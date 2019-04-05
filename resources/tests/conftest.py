@@ -7,7 +7,7 @@ from rest_framework.test import APIClient, APIRequestFactory
 
 from resources.models import Resource, ResourceType, Unit, Purpose, Day, Period
 from resources.models import Equipment, EquipmentAlias, ResourceEquipment, EquipmentCategory, TermsOfUse, ResourceGroup
-
+from munigeo.models import Municipality
 
 @pytest.fixture
 def api_client():
@@ -32,7 +32,7 @@ def user_api_client(user):
 def all_user_types_api_client(request):
     api_client = APIClient()
     if request.param:
-        api_client.force_authenticate(request.getfuncargvalue(request.param))
+        api_client.force_authenticate(request.getfixturevalue(request.param))
     return api_client
 
 
@@ -263,7 +263,7 @@ def resource_group(resource_in_unit):
         identifier='test_group',
         name='Test resource group'
     )
-    group.resources = [resource_in_unit]
+    group.resources.set([resource_in_unit])
     return group
 
 
@@ -273,5 +273,13 @@ def resource_group2(resource_in_unit2):
         identifier='test_group_2',
         name='Test resource group 2'
     )
-    group.resources = [resource_in_unit2]
+    group.resources.set([resource_in_unit2])
     return group
+
+@pytest.fixture
+def test_municipality():
+    municipality = Municipality.objects.create(
+        id='foo',
+        name='Foo'
+    )
+    return municipality

@@ -8,7 +8,8 @@ Respa is a backend service for reserving and managing resources (e.g. meeting ro
 
 User interfaces for Respa developed by the City of Helsinki are [Varaamo](https://github.com/City-of-Helsinki/varaamo) and [Huvaja](https://github.com/City-of-Helsinki/huvaja), and the now-defunct [Stadin Tilapankki](https://github.com/City-of-Helsinki/tilapankki). The City of Hämeenlinna has developed a [Berth Reservation UI](https://github.com/CityOfHameenlinna/hmlvaraus-frontend) and [backend](https://github.com/CityOfHameenlinna/hmlvaraus-backend) on top of Respa.
 
-Editing data can be done by using a simple UI based on Django admin.
+There are two user interfaces for editing data: Admins may use the more powerful Django Admin UI - other users with less privileges may use the more restricted but easier-to-use and nicer-looking Respa Admin UI.
+
 
 Used by
 ------------
@@ -18,8 +19,10 @@ Used by
 - [City of Vantaa](https://api.hel.fi/respa/v1/) - for [Varaamo UI](https://varaamo.vantaa.fi/)
 - [City of Oulu](https://varaamo-api.ouka.fi/v1/) - for [Varaamo UI](https://varaamo.ouka.fi/)
 - [City of Mikkeli](https://mikkeli-respa.metatavu.io/v1/) - for [Varaamo UI](https://varaamo.mikkeli.fi/)
-- [City of Tampere](https://respa.tampere.fi/v1/) - for [Varaamo UI](https://varaamo.tampere.fi/)
-- City of Hämeenlinna - for [Berth Reservation UI](https://varaukset.hameenlinna.fi/)
+- [City of Raahe](https://varaamo-api.raahe.fi/v1/) - for [Varaamo UI](https://varaamo.raahe.fi/)
+- [City of Tampere](https://respa.tampere.fi/v1/) - for [Varaamo UI](https://varaamo.tampere.fi/) - [GitHub repo](https://github.com/Tampere/respa)
+- [City of Lappeenranta](https://varaamo.lappeenranta.fi/respa/v1/) - for [Varaamo UI](https://varaamo.lappeenranta.fi/) - [GitHub repo](https://github.com/City-of-Lappeenranta/Respa)
+- City of Hämeenlinna - for [Berth Reservation UI](https://varaukset.hameenlinna.fi/)  - [GitHub repo](https://github.com/CityOfHameenlinna/respa)
 
 FAQ
 ------------
@@ -30,25 +33,27 @@ Short for "RESurssiPAlvelu" i.e. Resource Service.
 Installation
 ------------
 
-### Prepare virtualenv
+### Prepare and activate virtualenv
 
-     virtualenv -p /usr/bin/python3 ~/.virtualenvs/
-     workon respa
+     virtualenv -p /usr/bin/python3 venv
+     source venv/bin/activate
 
 ### Install required packages
 
-Install all required packages with pip command:
+Install all packages required for development with pip command:
 
-     pip install -r requirements.txt
+     pip install -r dev-requirements.txt
+
 
 ### Create the database
 
 ```shell
-sudo -u postgres createuser -L -R -S respa
+sudo -u postgres createuser -P -R -S respa
 sudo -u postgres psql -d template1 -c "create extension hstore;"
 sudo -u postgres createdb -Orespa respa
 sudo -u postgres psql respa -c "CREATE EXTENSION postgis;"
 ```
+
 
 ### Build Respa Admin static resources
 
@@ -56,6 +61,16 @@ Make sure you have Node 8 or LTS and yarn installed.
 
 ```shell
 ./build-resources
+```
+
+### Dev environment configuration
+
+Create a file `respa/.env` to configure the dev environment e.g.:
+
+```
+DEBUG=1
+INTERNAL_IPS='127.0.0.1'
+DATABASE_URL='postgis://respa:password@localhost:5432/respa'
 ```
 
 ### Run Django migrations and import data
@@ -69,14 +84,6 @@ python manage.py resources_import --all tprek
 python manage.py resources_import --all kirjastot
 ```
 
-### Dev environment configuration
-
-Create a file `respa/.env` to configure the dev environment e.g.:
-
-```
-DEBUG=1
-INTERNAL_IPS='127.0.0.1'
-```
 
 ### Settings
 - `RESPA_IMAGE_BASE_URL`: Base URL used when building image URLs in email notifications. Example value: `'https://api.hel.fi'`.
@@ -167,6 +174,21 @@ database dump:
     ./manage.py create_sanitized_dump > sanitized_db.sql
 
 
+Importing a database dump
+-------------------------
+
+If you want to import a database dump, create the empty database as in
+"Create the database". Do not run any django commands on it, such as migrations
+or import scripts. Instead import the tables and data from the dump:
+
+    psql -h localhost -d respa -U respa -f sanitized_db.sql
+
+After importing, check for missing migrations (your codebase may contain new
+migrations that have not been executed in the dump) with `python manage.py
+showmigrations`. You can run the new migrations with `python manage.py
+migrate`.
+
+
 Running tests
 -------------
 
@@ -185,6 +207,16 @@ $ py.test --cov-report html .
 ```
 
 to generate a HTML coverage report.
+
+If you get errors about failed database creation, you might need to add
+priviledges for the respa postgresql account:
+
+```
+sudo -u postgres psql respa -c "ALTER ROLE respa WITH SUPERUSER CREATEDB;"
+```
+
+CreateDB allows the account to create a new database for the test run and
+superuser is required to add the required extensions to the database.
 
 
 Requirements

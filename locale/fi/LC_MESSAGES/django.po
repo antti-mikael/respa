@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2018-09-27 12:10+0300\n"
+"POT-Creation-Date: 2018-11-09 16:45+0200\n"
 "PO-Revision-Date: 2018-09-27 12:10+0300\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -252,6 +252,11 @@ msgstr "Varauksen teko menneisyyteen ei ole sallittua"
 msgid "The resource is reservable only before %(datetime)s"
 msgstr "Tila on varattavissa vain ennen %(datetime)s"
 
+# python-format
+#, python-format
+msgid "The resource is reservable only after %(datetime)s"
+msgstr "Tila on varattavissa vain %(datetime)s jälkeen"
+
 msgid "Only allowed to be set by staff members"
 msgstr "Ainoastaan virkailijat saavat asettaa"
 
@@ -294,7 +299,7 @@ msgid "closed"
 msgstr "kiinni"
 
 msgid "-"
-msgstr ""
+msgstr "-"
 
 msgid "Resource"
 msgstr "Resurssi"
@@ -616,8 +621,8 @@ msgstr "Tunnistautuminen"
 msgid "People capacity"
 msgstr "Henkilömäärä"
 
-msgid "Area"
-msgstr "Pinta-ala"
+msgid "Area (m2)"
+msgstr "Pinta-ala (m2)"
 
 msgid "Location"
 msgstr "Sijainti"
@@ -664,8 +669,20 @@ msgstr "Maksimituntihinta"
 msgid "Access code type"
 msgstr "Pääsykoodityyppi"
 
-msgid "Reservable days in advance"
-msgstr "Varattavissa etukäteen (päivissä)"
+msgid "Reservable max. days in advance"
+msgstr "Varattavissa enintään näin monta päivää etukäteen"
+
+msgid "Reservable min. days in advance"
+msgstr "Varattavissa vähintään näin monta päivää etukäteen"
+
+msgid "External reservation URL"
+msgstr "Ulkoisen varauskalenterin URL"
+
+msgid ""
+"A link to an external reservation system if this resource is managed "
+"elsewhere"
+msgstr ""
+"Ulkoisen varausjärjestelmän osoite jos tätä resurssia hallitaan muualla"
 
 msgid "resource"
 msgstr "resurssi"
@@ -960,7 +977,7 @@ msgid "Additional information before calendar."
 msgstr "Lisätiedot ennen kalenteria."
 
 msgid "E-mail notifications"
-msgstr "Sähköposti ilmoitukset"
+msgstr "Sähköposti-ilmoitukset"
 
 msgid "A notification will be sent when a space is booked."
 msgstr "Ilmoitus lähetetään, kun tilaa varataan."
@@ -980,10 +997,11 @@ msgstr "Nimi ja kuvaus"
 msgid "Contact person"
 msgstr "Yhteyshenkilö"
 
-msgid ""
-"Not used in the user interface of 'varaamo' but the information is added to "
-"the confirmation e-mail sent to the customer."
-msgstr ""
+msgid "Contact person information is only for internal use."
+msgstr "Yhteyshenkilön tiedot ovat vain sisäiseen käyttöön."
+
+msgid "External calendar"
+msgstr "Ulkoinen kalenterijärjestelmä"
 
 msgid "Images"
 msgstr "Kuva"
@@ -1028,73 +1046,75 @@ msgid "name"
 msgstr "nimi"
 
 msgid "a descriptive name for this Exchange configuration"
-msgstr ""
+msgstr "kuvaava nimi tälle Exchange-kokoonpanolle"
 
 msgid "EWS URL"
-msgstr ""
+msgstr "EWS URL"
 
 msgid ""
 "the URL to the Exchange Web Service (e.g. https://contoso.com/EWS/Exchange."
 "asmx)"
-msgstr ""
+msgstr "URL Exchange Web Serviceen (esim. https://contoso.com/EWS/Exchange."
+"asmx)"
 
 msgid "username"
 msgstr "käyttäjätunnus"
 
 msgid "the service user to authenticate as, in domain\\username format"
-msgstr ""
+msgstr "palveluun autentikoituva käyttäjä, muotoa domain\\käyttäjänimi"
 
 msgid "password"
 msgstr "salasana"
 
 msgid "the user's password (stored as plain-text)"
-msgstr ""
+msgstr "käyttäjän salasana (säilytetään selkokielisenä)"
 
 msgid "enabled"
-msgstr ""
+msgstr "käytössä"
 
 msgid ""
 "whether synchronization is enabled at all against this Exchange instance"
-msgstr ""
+msgstr "määrittää onko synkronointi käytössä tässä Exchange instanssissa"
 
 msgid "Exchange configuration"
-msgstr ""
+msgstr "Exchange konfiguraatio"
 
 msgid "Exchange configurations"
-msgstr ""
+msgstr "Exchange konfiguraatiot"
 
 msgid "sync Exchange to Respa"
-msgstr ""
+msgstr "synkronoi Exchange Respaan"
 
 msgid ""
 "if disabled, events will not be synced from the Exchange calendar to Respa"
-msgstr ""
+msgstr "mikäli ei käytössä, tapahtumia ei synkronoida Exchange-kalenterista Respaan"
 
 msgid "sync Respa to Exchange"
-msgstr ""
+msgstr "synkronoi Respa Exchangeen"
 
 msgid ""
 "if disabled, new events will not be synced from Respa to the Exchange "
 "calendar; pre-existing events continue to be updated"
-msgstr ""
+msgstr "mikäli ei käytössä, uusia tapahtumia ei synkronoida Respasta Exchange-"
+"kalenteriin; ennestään olleet tapahtumat päivittyvät"
 
 msgid "principal email"
-msgstr ""
+msgstr "pääasiallinen sähköpostiosoite"
 
 msgid "the email address for this resource in Exchange"
-msgstr ""
+msgstr "sähköpostiosoite tähän resurssiin Exchangessa"
 
 msgid "Exchange resource"
-msgstr ""
+msgstr "Exchange resurssi"
 
 msgid "Exchange resources"
-msgstr ""
+msgstr "Exchange resurssit"
 
 msgid "Exchange reservation"
-msgstr ""
+msgstr "Exchange varaus"
 
 msgid "Exchange reservations"
-msgstr ""
+msgstr "Exchange varaukset"
 
 msgid "Favorite resources"
 msgstr "Suosikkiresurssit"

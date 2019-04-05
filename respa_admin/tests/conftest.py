@@ -7,6 +7,10 @@ from resources.tests.conftest import (
     space_resource_type,
     terms_of_use,
     test_unit,
+    test_unit2,
+    general_admin,
+    resource_in_unit,
+    resource_in_unit2,
 )
 
 
@@ -25,6 +29,7 @@ EMPTY_RESOURCE_FORM_DATA = {
     'type': '',
     'name': '',
     'description': '',
+    'external_reservation_url': '',
     'purposes': '',
     'equipment': '',
     'responsible_contact_info': '',
@@ -32,7 +37,7 @@ EMPTY_RESOURCE_FORM_DATA = {
     'area': '',
     'min_period': '',
     'max_period': '',
-    'reservable_days_in_advance': '',
+    'reservable_max_days_in_advance': '',
     'max_reservations_per_user': '',
     'reservable': '',
     'reservation_info': '',
@@ -76,12 +81,15 @@ def empty_resource_form_data():
 
 
 @pytest.fixture
-def valid_resource_form_data(equipment, terms_of_use, purpose, space_resource_type, test_unit):
-    data = empty_resource_form_data()
+def valid_resource_form_data(
+    equipment, terms_of_use, purpose, space_resource_type, test_unit, empty_resource_form_data
+):
+    data = empty_resource_form_data
     data.update({
         'access_code_type': 'pin6',
         'authentication': 'weak',
         'equipment': equipment.pk,
+        'external_reservation_url': 'http://calendar.example.tld',
         'generic_terms': terms_of_use.pk,
         'max_period': '01:00:00',
         'min_period': '00:30:00',
