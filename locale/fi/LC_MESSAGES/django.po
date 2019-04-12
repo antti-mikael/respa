@@ -928,8 +928,8 @@ msgstr ""
 msgid "Login failed"
 msgstr "Kirjautuminen epäonnistui"
 
-msgid "Log in with Helsinki account"
-msgstr "Kirjaudu Helsinki-tunnuksella"
+msgid "Log in with Tampere account"
+msgstr "Kirjaudu Tampere-tunnuksella"
 
 msgid "Username"
 msgstr "Käyttäjätunnus"
