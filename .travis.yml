@@ -42,7 +42,6 @@ script: pytest --cov . --doctest-modules
 
 after_success:
   - codecov
-  - ./deploy/containerize.sh
 
 notifications:
   slack:
