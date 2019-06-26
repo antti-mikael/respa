@@ -1,5 +1,5 @@
-Django<2
-django-modeltranslation
+Django
+django-modeltranslation>=0.13-beta1
 --no-binary psycopg2
 psycopg2
 django-munigeo
@@ -45,3 +45,5 @@ django-environ
 django-enumfields
 django-sanitized-dump>=0.2.0
 database-sanitizer>=0.4.0
+jsonschema
+django-admin-json-editor

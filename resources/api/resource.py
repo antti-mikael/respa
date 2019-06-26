@@ -13,7 +13,7 @@ from django.contrib.gis.db.models.functions import Distance
 from django.contrib.gis.geos import Point
 from resources.pagination import PurposePagination
 from rest_framework import exceptions, filters, mixins, serializers, viewsets, response, status
-from rest_framework.decorators import detail_route
+from rest_framework.decorators import action
 from guardian.core import ObjectPermissionChecker
 
 from munigeo import api as munigeo_api
@@ -83,7 +83,7 @@ class ResourceTypeSerializer(TranslatedModelSerializer):
 
 
 class ResourceTypeFilterSet(django_filters.FilterSet):
-    resource_group = django_filters.Filter(name='resource__groups__identifier', lookup_expr='in',
+    resource_group = django_filters.Filter(field_name='resource__groups__identifier', lookup_expr='in',
                                            widget=django_filters.widgets.CSVWidget, distinct=True)
 
     class Meta:
@@ -95,7 +95,8 @@ class ResourceTypeViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = ResourceType.objects.all()
     serializer_class = ResourceTypeSerializer
     filter_backends = (django_filters.rest_framework.DjangoFilterBackend,)
-    filter_class = ResourceTypeFilterSet
+    filterset_class = ResourceTypeFilterSet
+
 
 register_view(ResourceTypeViewSet, 'type')
 
@@ -155,8 +156,12 @@ class ResourceSerializer(TranslatedModelSerializer, munigeo_api.GeoModelSerializ
     required_reservation_extra_fields = serializers.ReadOnlyField(source='get_required_reservation_extra_field_names')
     is_favorite = serializers.SerializerMethodField()
     generic_terms = serializers.SerializerMethodField()
-    reservable_days_in_advance = serializers.ReadOnlyField(source='get_reservable_days_in_advance')
+    # deprecated, backwards compatibility
+    reservable_days_in_advance = serializers.ReadOnlyField(source='get_reservable_max_days_in_advance')
+    reservable_max_days_in_advance = serializers.ReadOnlyField(source='get_reservable_max_days_in_advance')
     reservable_before = serializers.SerializerMethodField()
+    reservable_min_days_in_advance = serializers.ReadOnlyField(source='get_reservable_min_days_in_advance')
+    reservable_after = serializers.SerializerMethodField()
 
     def get_user_permissions(self, obj):
         request = self.context.get('request', None)
@@ -182,6 +187,15 @@ class ResourceSerializer(TranslatedModelSerializer, munigeo_api.GeoModelSerializ
             return None
         else:
             return obj.get_reservable_before()
+
+    def get_reservable_after(self, obj):
+        request = self.context.get('request')
+        user = request.user if request else None
+
+        if user and obj.is_admin(user):
+            return None
+        else:
+            return obj.get_reservable_after()
 
     def to_representation(self, obj):
         # we must parse the time parameters before serializing
@@ -283,7 +297,7 @@ class ParentFilter(django_filters.Filter):
 
     def filter(self, qs, value):
         child_matches = super().filter(qs, value)
-        self.name = self.name.replace('__id', '__parent__id')
+        self.field_name = self.field_name.replace('__id', '__parent__id')
         parent_matches = super().filter(qs, value)
         return child_matches | parent_matches
 
@@ -297,22 +311,40 @@ class ResourceFilterSet(django_filters.FilterSet):
         self.user = kwargs.pop('user')
         super().__init__(*args, **kwargs)
 
-    purpose = ParentCharFilter(name='purposes__id', lookup_expr='iexact')
-    type = django_filters.Filter(name='type__id', lookup_expr='in', widget=django_filters.widgets.CSVWidget)
-    people = django_filters.NumberFilter(name='people_capacity', lookup_expr='gte')
-    need_manual_confirmation = django_filters.BooleanFilter(name='need_manual_confirmation',
+    purpose = ParentCharFilter(field_name='purposes__id', lookup_expr='iexact')
+    type = django_filters.Filter(field_name='type__id', lookup_expr='in', widget=django_filters.widgets.CSVWidget)
+    people = django_filters.NumberFilter(field_name='people_capacity', lookup_expr='gte')
+    need_manual_confirmation = django_filters.BooleanFilter(field_name='need_manual_confirmation',
                                                             widget=DRFFilterBooleanWidget)
     is_favorite = django_filters.BooleanFilter(method='filter_is_favorite', widget=DRFFilterBooleanWidget)
-    unit = django_filters.CharFilter(name='unit__id', lookup_expr='iexact')
-    resource_group = django_filters.Filter(name='groups__identifier', lookup_expr='in',
+    unit = django_filters.CharFilter(field_name='unit__id', lookup_expr='iexact')
+    resource_group = django_filters.Filter(field_name='groups__identifier', lookup_expr='in',
                                            widget=django_filters.widgets.CSVWidget, distinct=True)
-    equipment = django_filters.Filter(name='resource_equipment__equipment__id', lookup_expr='in',
+    equipment = django_filters.Filter(field_name='resource_equipment__equipment__id', lookup_expr='in',
                                       widget=django_filters.widgets.CSVWidget, distinct=True)
     available_between = django_filters.Filter(method='filter_available_between',
                                               widget=django_filters.widgets.CSVWidget)
+    free_of_charge = django_filters.BooleanFilter(method='filter_free_of_charge',
+                                                  widget=DRFFilterBooleanWidget)
+    municipality = django_filters.Filter(field_name='unit__municipality_id', lookup_expr='in',
+                                         widget=django_filters.widgets.CSVWidget, distinct=True)
+    order_by = django_filters.OrderingFilter(
+        fields=(
+            ('name_fi', 'resource_name_fi'),
+            ('name_en', 'resource_name_en'),
+            ('name_sv', 'resource_name_sv'),
+            ('unit__name_fi', 'unit_name_fi'),
+            ('unit__name_en', 'unit_name_en'),
+            ('unit__name_sv', 'unit_name_sv'),
+            ('type__name_fi', 'type_name_fi'),
+            ('type__name_en', 'type_name_en'),
+            ('type__name_sv', 'type_name_sv'),
+            ('people_capacity', 'people_capacity'),
+        ),
+    )
 
     def filter_is_favorite(self, queryset, name, value):
-        if not self.user.is_authenticated():
+        if not self.user.is_authenticated:
             if value:
                 return queryset.none()
             else:
@@ -322,6 +354,13 @@ class ResourceFilterSet(django_filters.FilterSet):
             return queryset.filter(favorited_by=self.user)
         else:
             return queryset.exclude(favorited_by=self.user)
+
+    def filter_free_of_charge(self, queryset, name, value):
+        qs = Q(min_price_per_hour__lte=0) | Q(min_price_per_hour__isnull=True)
+        if value:
+            return queryset.filter(qs)
+        else:
+            return queryset.exclude(qs)
 
     def _deserialize_datetime(self, value):
         try:
@@ -453,7 +492,7 @@ class ResourceFilterSet(django_filters.FilterSet):
 
     class Meta:
         model = Resource
-        fields = ['purpose', 'type', 'people', 'need_manual_confirmation', 'is_favorite', 'unit', 'available_between']
+        fields = ['purpose', 'type', 'people', 'need_manual_confirmation', 'is_favorite', 'unit', 'available_between', 'min_price_per_hour']
 
 
 class ResourceFilterBackend(filters.BaseFilterBackend):
@@ -588,10 +627,7 @@ class ResourceListViewSet(munigeo_api.GeoModelAPIView, mixins.ListModelMixin,
         return context
 
     def get_queryset(self):
-        if is_general_admin(self.request.user):
-            return self.queryset
-        else:
-            return self.queryset.filter(public=True)
+        return self.queryset.visible_for(self.request.user)
 
 
 class ResourceViewSet(munigeo_api.GeoModelAPIView, mixins.RetrieveModelMixin,
@@ -609,17 +645,13 @@ class ResourceViewSet(munigeo_api.GeoModelAPIView, mixins.RetrieveModelMixin,
         return context
 
     def get_queryset(self):
-        if is_general_admin(self.request.user):
-            return self.queryset
-        else:
-            return self.queryset.filter(public=True)
+        return self.queryset.visible_for(self.request.user)
 
     def _set_favorite(self, request, value):
         resource = self.get_object()
         user = request.user
 
         exists = user.favorite_resources.filter(id=resource.id).exists()
-
         if value:
             if not exists:
                 user.favorite_resources.add(resource)
@@ -633,11 +665,11 @@ class ResourceViewSet(munigeo_api.GeoModelAPIView, mixins.RetrieveModelMixin,
             else:
                 return response.Response(status=status.HTTP_304_NOT_MODIFIED)
 
-    @detail_route(methods=['post'])
+    @action(detail=True, methods=['post'])
     def favorite(self, request, pk=None):
         return self._set_favorite(request, True)
 
-    @detail_route(methods=['post'])
+    @action(detail=True, methods=['post'])
     def unfavorite(self, request, pk=None):
         return self._set_favorite(request, False)
 

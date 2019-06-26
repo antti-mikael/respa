@@ -22,7 +22,7 @@ from .resource import generate_access_code, validate_access_code
 from .resource import Resource
 from .utils import (
     get_dt, save_dt, is_valid_time_slot, humanize_duration, send_respa_mail,
-    DEFAULT_LANG, localize_datetime, format_dt_range
+    DEFAULT_LANG, localize_datetime, format_dt_range, build_reservations_ical_file
 )
 
 DEFAULT_TZ = pytz.timezone(settings.TIME_ZONE)
@@ -101,7 +101,7 @@ class Reservation(ModifiableModel):
     comments = models.TextField(null=True, blank=True, verbose_name=_('Comments'))
     user = models.ForeignKey(settings.AUTH_USER_MODEL, verbose_name=_('User'), null=True,
                              blank=True, db_index=True, on_delete=models.PROTECT)
-    state = models.CharField(max_length=16, choices=STATE_CHOICES, verbose_name=_('State'), default=CONFIRMED)
+    state = models.CharField(max_length=16, choices=STATE_CHOICES, verbose_name=_('State'), default=CREATED)
     approver = models.ForeignKey(settings.AUTH_USER_MODEL, verbose_name=_('Approver'),
                                  related_name='approved_reservations', null=True, blank=True,
                                  on_delete=models.SET_NULL)
@@ -228,6 +228,8 @@ class Reservation(ModifiableModel):
         elif old_state == Reservation.CONFIRMED:
             self.approver = None
 
+        user_is_staff = self.user is not None and self.user.is_staff
+
         # Notifications
         if new_state == Reservation.REQUESTED:
             self.send_reservation_requested_mail()
@@ -235,10 +237,12 @@ class Reservation(ModifiableModel):
         elif new_state == Reservation.CONFIRMED:
             if self.need_manual_confirmation():
                 self.send_reservation_confirmed_mail()
-            elif self.resource.is_access_code_enabled():
+            elif self.access_code:
                 self.send_reservation_created_with_access_code_mail()
             else:
-                self.send_reservation_created_mail()
+                if not user_is_staff:
+                    # notifications are not sent from staff created reservations to avoid spam
+                    self.send_reservation_created_mail()
         elif new_state == Reservation.DENIED:
             self.send_reservation_denied_mail()
         elif new_state == Reservation.CANCELLED:
@@ -343,6 +347,7 @@ class Reservation(ModifiableModel):
             }
             if self.resource.unit:
                 context['unit'] = self.resource.unit.name
+                context['unit_id'] = self.resource.unit.id
             if self.can_view_access_code(user) and self.access_code:
                 context['access_code'] = self.access_code
 
@@ -370,7 +375,7 @@ class Reservation(ModifiableModel):
 
         return context
 
-    def send_reservation_mail(self, notification_type, user=None):
+    def send_reservation_mail(self, notification_type, user=None, attachments=None):
         """
         Stuff common to all reservation related mails.
 
@@ -402,7 +407,8 @@ class Reservation(ModifiableModel):
             email_address,
             rendered_notification['subject'],
             rendered_notification['body'],
-            rendered_notification['html_body']
+            rendered_notification['html_body'],
+            attachments
         )
 
     def send_reservation_requested_mail(self):
@@ -419,25 +425,39 @@ class Reservation(ModifiableModel):
         self.send_reservation_mail(NotificationType.RESERVATION_DENIED)
 
     def send_reservation_confirmed_mail(self):
-        self.send_reservation_mail(NotificationType.RESERVATION_CONFIRMED)
+        reservations = [self]
+        ical_file = build_reservations_ical_file(reservations)
+        attachment = ('reservation.ics', ical_file, 'text/calendar')
+        self.send_reservation_mail(NotificationType.RESERVATION_CONFIRMED,
+                                   attachments=[attachment])
 
     def send_reservation_cancelled_mail(self):
         self.send_reservation_mail(NotificationType.RESERVATION_CANCELLED)
 
     def send_reservation_created_mail(self):
-        self.send_reservation_mail(NotificationType.RESERVATION_CREATED)
+        reservations = [self]
+        ical_file = build_reservations_ical_file(reservations)
+        attachment = 'reservation.ics', ical_file, 'text/calendar'
+        self.send_reservation_mail(NotificationType.RESERVATION_CREATED,
+                                   attachments=[attachment])
 
     def send_reservation_created_with_access_code_mail(self):
-        self.send_reservation_mail(NotificationType.RESERVATION_CREATED_WITH_ACCESS_CODE)
+        reservations = [self]
+        ical_file = build_reservations_ical_file(reservations)
+        attachment = 'reservation.ics', ical_file, 'text/calendar'
+        self.send_reservation_mail(NotificationType.RESERVATION_CREATED_WITH_ACCESS_CODE,
+                                   attachments=[attachment])
+
+    def send_access_code_created_mail(self):
+        self.send_reservation_mail(NotificationType.RESERVATION_ACCESS_CODE_CREATED)
 
     def save(self, *args, **kwargs):
         self.duration = DateTimeTZRange(self.begin, self.end, '[)')
 
-        access_code_type = self.resource.access_code_type
-        if not self.resource.is_access_code_enabled():
-            self.access_code = ''
-        elif not self.access_code:
-            self.access_code = generate_access_code(access_code_type)
+        if not self.access_code:
+            access_code_type = self.resource.access_code_type
+            if self.resource.is_access_code_enabled() and self.resource.generate_access_codes:
+                self.access_code = generate_access_code(access_code_type)
 
         return super().save(*args, **kwargs)
 

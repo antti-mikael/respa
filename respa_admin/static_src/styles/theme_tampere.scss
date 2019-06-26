@@ -1,0 +1,35 @@
+// Tampere Brand variables
+// Variable names are in finnish to stay consistent with the style guide
+// Source: https://www.tampere.fi/tiedostot/g/68AHPEQPX/graafinen_ohjeisto.pdf
+
+// Main brand colors (fi: Päävärit)
+$brand-tunnelma:   #c83e36;
+$brand-muutos:     #cb4a6c;
+$brand-tyo:        #29549a;
+$brand-koti:       #39a7d7;
+$brand-kokemus:    #abc872;
+$brand-idea:       #f4d240;
+
+// Additional colors (fi: Lisävärit)
+$brand-tumma-vesi:      #00417d;
+$brand-usva:            #668ec9;
+$brand-tiilenpunainen:  #eb5e58;
+$brand-paahde:          #e8b455;
+$brand-vedensininen:    #91c9ea;
+
+// Basic color (fi: Perusvärit)
+$brand-vaaleanharmaa:      #bebfbf;
+$brand-siniharmaa:         #cad6e2;
+$brand-vaalea-siniharmaa:  #e5eef8;
+
+// Commonly used color variables
+$hel-coat:         $brand-tyo;
+$hel-copper:       $brand-koti;
+$theme-success:    $brand-kokemus;
+$theme-warning:    $brand-paahde;
+$theme-danger:     $brand-tunnelma;
+
+
+@mixin koro($_style, $_color, $_scale) {
+  background: $brand-koti;
+}

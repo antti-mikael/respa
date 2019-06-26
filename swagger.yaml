@@ -86,6 +86,10 @@ paths:
           description: Number of units per page
           required: false
           type: integer
+        - name: unit_has_resource
+          in: query
+          description: Only return units that either have or do not have related resources, based on the boolean value given.
+          type: boolean
       responses:
         '200':
           description: Successful response
@@ -415,6 +419,21 @@ paths:
           required: false
           type: string
           description: Only return resources that belong to the speficied resource group(s). Accepts multiple comma-separated values.
+        - name: unit
+          in: query
+          required: false
+          type: string
+          description: Only return resources that belong to the specified unit.
+        - name: need_manual_confirmation
+          in: query
+          required: false
+          type: boolean
+          description: Only return resources that need or do not need manual confirmation, based on the boolean value.
+        - name: is_favorite
+          in: query
+          required: false
+          type: boolean
+          description: Only return resources that are or are not favorited by authenticated user, based on the boolean value.
         - name: available_between
           in: query
           required: false
@@ -430,6 +449,36 @@ paths:
           description: Number of resources per page
           required: false
           type: integer
+        - name: lat
+          in: query
+          required: false
+          type: number
+          description: Use together with `lon` and `distance`. Specifies latitude to return only resources that are within the given `distance`.
+        - name: lon
+          in: query
+          required: false
+          type: number
+          description: Use together with `lat` and `distance`. Specifies longitude to return only resources that are within the given `distance`.
+        - name: distance
+          in: query
+          required: false
+          type: number
+          description: Use together with `lat` and `long`. Returns only resources that are within the given `distance` of the point which is calculated from `lat` and `lon`.
+        - name: free_of_charge
+          in: query
+          required: false
+          type: boolean
+          description: If given boolean is `true`, returns only resources that have their `min_price_per_hour` value of `0` or `None`. If given boolean is `false`, returns resources that have their `min_price_per_hour` greater than 0.  
+        - name: municipality
+          in: query
+          description: Only return resources that belong to units that are located in the given municipality.
+          required: false
+          type: string
+        - name: order_by
+          in: query
+          description: Order queryset by given resource fields, accepted values are `resource_name_fi`, `resource_name_en`, `resource_name_sv`, `unit_name_fi`, `unit_name_en`, `unit_name_sv`, `type`, `people_capacity`. Prefix parameter value with `-` to get reverse ordering.
+          required: false
+          type: string
       responses:
         '200':
           description: Successful response
@@ -530,7 +579,32 @@ paths:
           in: query
           required: false
           type: string
-          description: Only return reservations for resources in the specified resource group(s). Accepts multiple comma-separated values.
+          description: Only return reservations for resources that belong to the speficied resource group(s). Accepts multiple comma-separated values.
+        - name: event_subject
+          in: query
+          required: false
+          type: string
+          description: Only return reservations that has given parameter in the event subject.
+        - name: host_name
+          in: query
+          required: false
+          type: string
+          description: Only return reservations that has given parameter in the host name field.
+        - name: reserver_name
+          in: query
+          required: false
+          type: string
+          description: Only return reservations that has given parameter in the reserver name field.
+        - name: resource_name
+          in: query
+          required: false
+          type: string
+          description: Only return reservations that has given parameter in the resource name field.
+        - name: unit
+          in: query
+          required: false
+          type: string
+          description: Only return reservations for resources that belong to the specified unit.
       responses:
         '200':
           description: Successful response
@@ -866,6 +940,14 @@ definitions:
       reservable:
         type: boolean
         description: 'Is it possible to create or modify reservations for this resource through the API. Even if this is false, reservations by other means (eg. phone call) might still be possible.'
+      reservable_max_days_in_advance:
+        type: integer
+        minimum: 0
+        description: 'Reservable max. days in advance, accepts null value'
+      reservable_min_days_in_advance:
+        type: integer
+        minimum: 0
+        description: 'Reservable min. days in advance, accepts null value'
       reservations:
         type: array
         description: 'The reservations made for the resource during the queried period'
@@ -877,14 +959,14 @@ definitions:
         type: string
       name:
         type: object
-        properties: 
-          fi: 
+        properties:
+          fi:
             type: string
             description: 'Resource name in Finnish'
       description:
         type: object
-        properties: 
-          fi: 
+        properties:
+          fi:
             type: string
             description: 'Resource description in Finnish'
       photo:
@@ -947,6 +1029,10 @@ definitions:
             additionalProperties:
               type: string
             description: 'Additional data related to the resource specific equipment instance'
+      external_reservation_url:
+        type: string
+        format: uri
+        description: URL to an external calendar for the resource.
 
   equipment:
     type: object

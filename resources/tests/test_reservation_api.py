@@ -2,12 +2,13 @@ import pytest
 import datetime
 import re
 from django.contrib.auth import get_user_model
-from django.core.urlresolvers import reverse
+from django.urls import reverse
 from django.core import mail
 from django.test.utils import override_settings
 from django.utils import dateparse, timezone, translation
 from guardian.shortcuts import assign_perm, remove_perm
 from freezegun import freeze_time
+from icalendar import Calendar
 from parler.utils.context import switch_language
 
 from caterings.models import CateringOrder, CateringProvider
@@ -96,6 +97,7 @@ def reservation(resource_in_unit, user):
         event_subject='some fancy event',
         host_name='esko',
         reserver_name='martta',
+        state=Reservation.CONFIRMED
     )
 
 
@@ -109,6 +111,7 @@ def reservation2(resource_in_unit2, user):
         event_subject='not so fancy event',
         host_name='markku',
         reserver_name='pirkko',
+        state=Reservation.CONFIRMED
     )
 
 
@@ -123,6 +126,7 @@ def reservation3(resource_in_unit2, user2):
         event_subject='not so fancy event',
         host_name='markku',
         reserver_name='pirkko',
+        state=Reservation.CONFIRMED
     )
 
 
@@ -603,6 +607,7 @@ def test_reservation_user_filter(api_client, list_url, reservation, resource_in_
         begin=dateparse.parse_datetime('2115-04-07T11:00:00+02:00'),
         end=dateparse.parse_datetime('2115-04-07T12:00:00+02:00'),
         user=user2,
+        state=Reservation.CONFIRMED,
     )
 
     # even unauthenticated user should see all the reservations
@@ -631,6 +636,7 @@ def test_reservation_time_filters(api_client, list_url, reservation, resource_in
         begin=dateparse.parse_datetime('2015-04-07T11:00:00+02:00'),
         end=dateparse.parse_datetime('2015-04-07T12:00:00+02:00'),
         user=user,
+        state=Reservation.CONFIRMED,
     )
 
     # without the filter, only the reservation in the future should be returned
@@ -678,7 +684,7 @@ def test_max_reservation_period_error_message(
 
     reservation_data['end'] = '2115-04-04T16:00:00+02:00'  # too long reservation
 
-    resource_in_unit.max_period=datetime.timedelta(hours=input_hours, minutes=input_mins)
+    resource_in_unit.max_period = datetime.timedelta(hours=input_hours, minutes=input_mins)
     resource_in_unit.save()
 
     api_client.force_authenticate(user=user)
@@ -844,7 +850,7 @@ def test_staff_event_restrictions(user_api_client, staff_api_client, staff_user,
 
 @pytest.mark.django_db
 def test_new_staff_event_gets_confirmed(user_api_client, staff_api_client, staff_user, list_url, resource_in_unit,
-                                      reservation_data, reservation_data_extra):
+                                        reservation_data, reservation_data_extra):
     resource_in_unit.need_manual_confirmation = True
     resource_in_unit.reservation_metadata_set = ReservationMetadataSet.objects.get(name='default')
     resource_in_unit.save()
@@ -869,7 +875,7 @@ def test_new_staff_event_gets_confirmed(user_api_client, staff_api_client, staff
 
 @pytest.mark.django_db
 def test_extra_fields_can_be_set_for_paid_reservations(user_api_client, list_url, reservation_data_extra,
-                                                      resource_in_unit):
+                                                       resource_in_unit):
     resource_in_unit.max_reservations_per_user = 2
     resource_in_unit.need_manual_confirmation = True
     resource_in_unit.reservation_metadata_set = ReservationMetadataSet.objects.get(name='default')
@@ -1270,14 +1276,25 @@ def test_reservation_mails_in_finnish(
 @pytest.mark.django_db
 def test_reservation_created_mail(user_api_client, list_url, reservation_data, user, reservation_created_notification):
     response = user_api_client.post(list_url, data=reservation_data, format='json')
+    file_name, ical_file, mimetype = mail.outbox[0].attachments[0]
     assert response.status_code == 201
-
+    assert len(mail.outbox[0].attachments) == 1
+    Calendar.from_ical(ical_file)
     assert len(mail.outbox) == 1
     check_received_mail_exists(
         'Normal reservation created subject.',
         user.email,
         'Normal reservation created body.',
     )
+
+
+@override_settings(RESPA_MAILS_ENABLED=True)
+@pytest.mark.django_db
+def test_no_reservation_created_mail_for_staff_reservation(
+        staff_api_client, list_url, reservation_data, user, reservation_created_notification):
+    response = staff_api_client.post(list_url, data=reservation_data, format='json')
+    assert response.status_code == 201
+    assert len(mail.outbox) == 0
 
 
 @override_settings(RESPA_MAILS_ENABLED=True)
@@ -1446,6 +1463,18 @@ def test_pin6_access_code_can_be_set(user_api_client, list_url, resource_in_unit
 
 
 @pytest.mark.django_db
+def test_pin4_access_code_is_not_generated(user_api_client, list_url, resource_in_unit, reservation_data):
+    resource_in_unit.access_code_type = Resource.ACCESS_CODE_TYPE_PIN4
+    resource_in_unit.generate_access_codes = False
+    resource_in_unit.save()
+
+    response = user_api_client.post(list_url, data=reservation_data)
+    assert response.status_code == 201
+    new_reservation = Reservation.objects.get(id=response.data['id'])
+    assert not new_reservation.access_code
+
+
+@pytest.mark.django_db
 def test_pin6_access_code_cannot_be_modified(user_api_client, resource_in_unit, reservation, reservation_data):
     resource_in_unit.access_code_type = Resource.ACCESS_CODE_TYPE_PIN6
     resource_in_unit.save()
@@ -1506,6 +1535,9 @@ def test_reservation_created_with_access_code_mail(user_api_client, user, resour
 
     response = user_api_client.post(list_url, data=reservation_data)
     assert response.status_code == 201
+    file_name, ical_file, mimetype = mail.outbox[0].attachments[0]
+    assert len(mail.outbox[0].attachments) == 1
+    Calendar.from_ical(ical_file)
     check_received_mail_exists(
         'Reservation created',
         user.email,
@@ -1523,7 +1555,7 @@ def test_reservation_created_with_access_code_mail(user_api_client, user, resour
 @freeze_time('2115-04-02')
 @pytest.mark.django_db
 def test_reservation_reservable_before(user_api_client, resource_in_unit, list_url, reservation_data):
-    resource_in_unit.reservable_days_in_advance = 10
+    resource_in_unit.reservable_max_days_in_advance = 10
     resource_in_unit.save()
 
     reservation_data['begin'] = timezone.now().replace(hour=12, minute=0, second=0) + datetime.timedelta(days=11)
@@ -1540,6 +1572,48 @@ def test_reservation_reservable_before(user_api_client, resource_in_unit, list_u
     assert response.status_code == 201
 
 
+@freeze_time('2115-04-02')
+@pytest.mark.django_db
+def test_reservation_reservable_after(user_api_client, resource_in_unit, list_url, reservation_data):
+    resource_in_unit.reservable_min_days_in_advance = 8
+    resource_in_unit.save()
+
+    reservation_data['begin'] = timezone.now().replace(hour=12, minute=0, second=0) + datetime.timedelta(days=9)
+    reservation_data['end'] = timezone.now().replace(hour=13, minute=0, second=0) + datetime.timedelta(days=9)
+
+    response = user_api_client.post(list_url, data=reservation_data)
+    msg = 'expected status_code {}, received {} with message "{}"'
+    assert response.status_code == 201, msg.format(201, response.status_code, response.data)
+
+    reservation_data['begin'] = timezone.now().replace(hour=12, minute=0, second=0) + datetime.timedelta(days=7)
+    reservation_data['end'] = timezone.now().replace(hour=13, minute=0, second=0) + datetime.timedelta(days=7)
+
+    response = user_api_client.post(list_url, data=reservation_data)
+    msg = 'expected status_code {}, received {} with message "{}"'
+    assert response.status_code == 400, msg.format(400, response.status_code, response.data)
+    assert_non_field_errors_contain(response, 'The resource is reservable only after')
+
+
+@freeze_time('2115-04-02')
+@pytest.mark.django_db
+def test_admins_can_make_reservations_despite_delay(
+        api_client, list_url, resource_in_unit, reservation_data, general_admin):
+    """
+    Admin should be able to make reservations regardless of reservation delay limitations
+    """
+    api_client.force_authenticate(user=general_admin)
+    resource_in_unit.reservable_min_days_in_advance = 10
+    resource_in_unit.save()
+
+    reservation_data['begin'] = timezone.now().replace(hour=12, minute=0, second=0) + datetime.timedelta(days=9)
+    reservation_data['end'] = timezone.now().replace(hour=13, minute=0, second=0) + datetime.timedelta(days=9)
+
+    response = api_client.post(list_url, data=reservation_data)
+    msg = 'expected status_code {}, received {} with message "{}"'
+
+    assert response.status_code == 201, msg.format(201, response.status_code, response.data)
+
+
 @pytest.mark.django_db
 def test_reservation_metadata_set(user_api_client, reservation, list_url, reservation_data):
     detail_url = reverse('reservation-detail', kwargs={'pk': reservation.pk})
@@ -1549,8 +1623,8 @@ def test_reservation_metadata_set(user_api_client, reservation, list_url, reserv
         name='test_set',
 
     )
-    metadata_set.supported_fields = [field_1, field_2]
-    metadata_set.required_fields = [field_1]
+    metadata_set.supported_fields.set([field_1, field_2])
+    metadata_set.required_fields.set([field_1])
 
     reservation.resource.reservation_metadata_set = metadata_set
     reservation.resource.save(update_fields=('reservation_metadata_set',))
@@ -1701,13 +1775,13 @@ def test_resource_group_filter(user_api_client, user, reservation, reservation2,
     reservation3.save()
 
     group_1 = ResourceGroup.objects.create(name='test group 1', identifier='test_group_1')
-    resource_in_unit.groups = [group_1]
+    resource_in_unit.groups.set([group_1])
 
     group_2 = ResourceGroup.objects.create(name='test group 2', identifier='test_group_2')
-    resource_in_unit2.groups = [group_1, group_2]
+    resource_in_unit2.groups.set([group_1, group_2])
 
     group_3 = ResourceGroup.objects.create(name='test group 3', identifier='test_group_3')
-    resource_in_unit3.groups = [group_3]
+    resource_in_unit3.groups.set([group_3])
 
     response = user_api_client.get(list_url)
     assert response.status_code == 200

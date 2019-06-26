@@ -1,5 +1,6 @@
 from django.utils.translation import ugettext_lazy as _
 from django import forms
+from django.core.exceptions import ValidationError
 from django.forms import inlineformset_factory
 
 from .widgets import (
@@ -47,6 +48,14 @@ class DaysForm(forms.ModelForm):
         model = Day
         fields = ['weekday', 'opens', 'closes', 'closed']
 
+    def clean(self):
+        cleaned_data = super().clean()
+        is_empty_hours = not cleaned_data['opens'] or not cleaned_data['closes']
+        is_closed = cleaned_data['closed']
+        if is_empty_hours and not is_closed:
+            raise ValidationError('Missing opening hours')
+        return cleaned_data
+
 
 class PeriodForm(forms.ModelForm):
     name = forms.CharField(
@@ -58,9 +67,10 @@ class PeriodForm(forms.ModelForm):
         required=True,
         widget=forms.DateInput(
             attrs={
-                'class': 'text-input form-control',
+                'class': 'text-input form-control datepicker',
                 'data-provide': 'datepicker',
                 'data-date-format': _("yyyy-mm-dd"),
+                'data-date-language': 'fi',
             }
         )
     )
@@ -69,9 +79,10 @@ class PeriodForm(forms.ModelForm):
         required=True,
         widget=forms.DateInput(
             attrs={
-                'class': 'text-input form-control',
+                'class': 'text-input form-control datepicker',
                 'data-provide': 'datepicker',
                 'data-date-format': _("yyyy-mm-dd"),
+                'data-date-language': 'fi',
             }
         )
     )
@@ -122,6 +133,9 @@ class ResourceForm(forms.ModelForm):
             'specific_terms_fi',
             'specific_terms_en',
             'specific_terms_sv',
+            'reservation_requested_notification_extra_fi',
+            'reservation_requested_notification_extra_en',
+            'reservation_requested_notification_extra_sv',
             'reservation_confirmed_notification_extra_fi',
             'reservation_confirmed_notification_extra_en',
             'reservation_confirmed_notification_extra_sv',
@@ -135,11 +149,13 @@ class ResourceForm(forms.ModelForm):
             'type',
             'purposes',
             'equipment',
+            'external_reservation_url',
             'people_capacity',
             'area',
             'min_period',
             'max_period',
-            'reservable_days_in_advance',
+            'reservable_max_days_in_advance',
+            'reservable_min_days_in_advance',
             'max_reservations_per_user',
             'reservable',
             'need_manual_confirmation',
@@ -149,21 +165,110 @@ class ResourceForm(forms.ModelForm):
             'min_price_per_hour',
             'generic_terms',
             'public',
+            'reservation_metadata_set',
         ] + translated_fields
 
         widgets = {
             'min_period': forms.Select(
                 choices=(
-                    ('00:30:00', '30 min'),
-                    ('00:45:00', '45 min'),
-                    ('01:00:00', '60 min'),
+                    ('00:30:00', '0,5 h'),
+                    ('01:00:00', '1 h'),
+                    ('01:30:00', '1,5 h'),
+                    ('02:00:00', '2 h'),
+                    ('02:30:00', '2,5 h'),
+                    ('03:00:00', '3 h'),
+                    ('03:30:00', '3,5 h'),
+                    ('04:00:00', '4 h'),
+                    ('04:30:00', '4,5 h'),
+                    ('05:00:00', '5 h'),
+                    ('05:30:00', '5,5 h'),
+                    ('06:00:00', '6 h'),
+                    ('06:30:00', '6,5 h'),
+                    ('07:00:00', '7 h'),
+                    ('07:30:00', '7,5 h'),
+                    ('08:00:00', '8 h'),
+                    ('08:30:00', '8,5 h'),
+                    ('09:00:00', '9 h'),
+                    ('09:30:00', '9,5 h'),
+                    ('10:00:00', '10 h'),
+                    ('10:30:00', '10,5 h'),
+                    ('11:00:00', '11 h'),
+                    ('11:30:00', '11,5 h'),
+                    ('12:00:00', '12 h'),
+                    ('12:30:00', '12,5 h'),
+                    ('13:00:00', '13 h'),
+                    ('13:30:00', '13,5 h'),
+                    ('14:00:00', '14 h'),
+                    ('14:30:00', '14,5 h'),
+                    ('15:00:00', '15 h'),
+                    ('15:30:00', '15,5 h'),
+                    ('16:00:00', '16 h'),
+                    ('16:30:00', '16,5 h'),
+                    ('17:00:00', '17 h'),
+                    ('17:30:00', '17,5 h'),
+                    ('18:00:00', '18 h'),
+                    ('18:30:00', '18,5 h'),
+                    ('19:00:00', '19 h'),
+                    ('19:30:00', '19,5 h'),
+                    ('20:00:00', '20 h'),
+                    ('20:30:00', '20,5 h'),
+                    ('21:00:00', '21 h'),
+                    ('21:30:00', '21,5 h'),
+                    ('22:00:00', '22 h'),
+                    ('22:30:00', '22,5 h'),
+                    ('23:00:00', '23 h'),
+                    ('23:30:00', '23,5 h'),
                 )
             ),
             'max_period': forms.Select(
                 choices=(
-                    ('00:30:00', '30 min'),
-                    ('00:45:00', '45 min'),
-                    ('01:00:00', '60 min'),
+                    ('00:30:00', '0,5 h'),
+                    ('01:00:00', '1 h'),
+                    ('01:30:00', '1,5 h'),
+                    ('02:00:00', '2 h'),
+                    ('02:30:00', '2,5 h'),
+                    ('03:00:00', '3 h'),
+                    ('03:30:00', '3,5 h'),
+                    ('04:00:00', '4 h'),
+                    ('04:30:00', '4,5 h'),
+                    ('05:00:00', '5 h'),
+                    ('05:30:00', '5,5 h'),
+                    ('06:00:00', '6 h'),
+                    ('06:30:00', '6,5 h'),
+                    ('07:00:00', '7 h'),
+                    ('07:30:00', '7,5 h'),
+                    ('08:00:00', '8 h'),
+                    ('08:30:00', '8,5 h'),
+                    ('09:00:00', '9 h'),
+                    ('09:30:00', '9,5 h'),
+                    ('10:00:00', '10 h'),
+                    ('10:30:00', '10,5 h'),
+                    ('11:00:00', '11 h'),
+                    ('11:30:00', '11,5 h'),
+                    ('12:00:00', '12 h'),
+                    ('12:30:00', '12,5 h'),
+                    ('13:00:00', '13 h'),
+                    ('13:30:00', '13,5 h'),
+                    ('14:00:00', '14 h'),
+                    ('14:30:00', '14,5 h'),
+                    ('15:00:00', '15 h'),
+                    ('15:30:00', '15,5 h'),
+                    ('16:00:00', '16 h'),
+                    ('16:30:00', '16,5 h'),
+                    ('17:00:00', '17 h'),
+                    ('17:30:00', '17,5 h'),
+                    ('18:00:00', '18 h'),
+                    ('18:30:00', '18,5 h'),
+                    ('19:00:00', '19 h'),
+                    ('19:30:00', '19,5 h'),
+                    ('20:00:00', '20 h'),
+                    ('20:30:00', '20,5 h'),
+                    ('21:00:00', '21 h'),
+                    ('21:30:00', '21,5 h'),
+                    ('22:00:00', '22 h'),
+                    ('22:30:00', '22,5 h'),
+                    ('23:00:00', '23 h'),
+                    ('23:30:00', '23,5 h'),
                 )
             ),
             'need_manual_confirmation': RespaRadioSelect(
