@@ -233,8 +233,20 @@ msgstr "Resurssiryhmä"
 msgid "Resource groups"
 msgstr "Resurssiryhmät"
 
+msgid "Import Service Map"
+msgstr "Tuo Service Map"
+
+msgid "Import Kirkanta"
+msgstr "Tuo Kirkanta"
+
 msgid "Required fields must be a subset of supported fields"
 msgstr "Jokaisen pakollisen kentän täytyy olla myös tuettu kenttä"
+
+msgid "Import municipalities"
+msgstr "Tuo kunnat"
+
+msgid "Import divisions"
+msgstr "Tuo alueet"
 
 msgid "HH:mm"
 msgstr "TT:mm"
@@ -465,6 +477,9 @@ msgstr "Tila"
 msgid "Approver"
 msgstr "Hyväksyjä"
 
+msgid "Is staff event"
+msgstr "Viraston oma tapahtuma"
+
 msgid "Access code"
 msgstr "Pääsykoodi"
 
@@ -633,6 +648,9 @@ msgstr "Lyhin varausaika"
 msgid "Maximum reservation time"
 msgstr "Pisin varausaika"
 
+msgid "Slot size for reservation time"
+msgstr "Varausajan välin koko"
+
 msgid "Equipment"
 msgstr "Varustelut"
 
@@ -684,6 +702,9 @@ msgid ""
 msgstr ""
 "Ulkoisen varausjärjestelmän osoite jos tätä resurssia hallitaan muualla"
 
+msgid "Reservation extra questions"
+msgstr "Varauksen lisäkysymykset"
+
 msgid "resource"
 msgstr "resurssi"
 
@@ -705,6 +726,9 @@ msgstr "Liikaa voimassa olevia varauksia tähän tilaan."
 
 msgid "This value cannot be greater than max price per hour"
 msgstr "Tämä arvo ei voi olla suurempi kuin maksimituntihinta"
+
+msgid "This value must be a multiple of slot_size"
+msgstr "Tämän arvon täytyy olla slot_size arvon moninkerta"
 
 msgid "Main photo"
 msgstr "Päävalokuva"
@@ -882,8 +906,14 @@ msgstr "Varattavissa"
 msgid "Please check the opening hours."
 msgstr "Tarkista aukioloajat."
 
+msgid "Instructions"
+msgstr "Ohjeet"
+
 msgid "Log out"
 msgstr "Kirjaudu ulos"
+
+msgid "Contact us"
+msgstr "Ota yhteyttä"
 
 msgid "Copy time period"
 msgstr "Kopioi aikajakso"
@@ -967,6 +997,15 @@ msgstr "Näkyvyys"
 msgid "Edit"
 msgstr "Muokkaa"
 
+msgid "Accessibility"
+msgstr "Esteettömyys"
+
+msgid "Accessibility data is entered in the Accessibility Application."
+msgstr "Tilan esteettömyystiedot täytetään Esteettömyyssovelluksessa."
+
+msgid "Enter accessibility data"
+msgstr "Täytä esteettömyystiedot"
+
 msgid "Booking information"
 msgstr "Varauksen tiedot"
 
@@ -981,6 +1020,12 @@ msgstr "Sähköposti-ilmoitukset"
 
 msgid "A notification will be sent when a space is booked."
 msgstr "Ilmoitus lähetetään, kun tilaa varataan."
+
+msgid "Extra questions"
+msgstr "Lisäkysymykset"
+
+msgid "Extra questions for reservation"
+msgstr "Varauksen lisäkysymykset"
 
 msgid "Choose from the list below"
 msgstr "Valitse allaolevasta listasta"
@@ -1012,6 +1057,9 @@ msgstr "Voit valita vain yhden pääkuvan."
 msgid "Add image"
 msgstr "Lisää kuva"
 
+msgid "Translations"
+msgstr "Käännökset"
+
 msgid "Authentication, terms and price"
 msgstr "Tunnistautuminen, ehdot ja hinta"
 
@@ -1035,6 +1083,9 @@ msgstr "Toiminnot"
 
 msgid "Save"
 msgstr "Tallenna"
+
+msgid "View resource"
+msgstr "Tarkastele resurssia"
 
 msgid "Edit resource"
 msgstr "Muokkaa resurssia"

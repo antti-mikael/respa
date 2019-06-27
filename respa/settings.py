@@ -2,15 +2,42 @@
 Django settings for respa project.
 """
 
-# Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 import os
+import subprocess
 import environ
-import raven
+import sentry_sdk
+from sentry_sdk.integrations.django import DjangoIntegration
 from django.utils.translation import ugettext_lazy as _
 from django.core.exceptions import ImproperlyConfigured
 
-
 root = environ.Path(__file__) - 2  # two folders back
+# Build paths inside the project like this: os.path.join(BASE_DIR, ...)
+BASE_DIR = root()
+
+# Location of the fallback version file, used when no repository is available.
+# This is hardcoded as reading it from configuration does not really make
+# sense. It is supposed to be a fallback after all.
+VERSION_FILE = os.path.join(BASE_DIR, '../service_state/deployed_version')
+
+def get_git_revision_hash():
+    """
+    We need a way to retrieve git revision hash for sentry reports
+    """
+    try:
+        # We are not interested in gits complaints, stderr -> null
+        git_hash = subprocess.check_output(['git', 'describe', '--tags', '--long', '--always'], stderr=subprocess.DEVNULL, encoding='utf8')
+    # First is "git not found", second is most likely "no repository"
+    except (FileNotFoundError, subprocess.CalledProcessError):
+        try:
+            # fall back to hardcoded file location
+            with open(VERSION_FILE) as f:
+                git_hash = f.readline()
+        except FileNotFoundError:
+            git_hash = "revision_not_available"
+
+    return git_hash.rstrip()
+
+
 env = environ.Env(
     DEBUG=(bool, False),
     SECRET_KEY=(str, ''),
@@ -34,14 +61,20 @@ env = environ.Env(
     MAIL_MAILGUN_DOMAIN=(str, ''),
     MAIL_MAILGUN_API=(str, ''),
     RESPA_IMAGE_BASE_URL=(str, ''),
+    ACCESSIBILITY_API_BASE_URL=(str, 'https://asiointi.hel.fi/kapaesteettomyys/'),
+    ACCESSIBILITY_API_SYSTEM_ID=(str, ''),
+    ACCESSIBILITY_API_SECRET=(str, ''),
+    RESPA_ADMIN_INSTRUCTIONS_URL=(str, ''),
+    RESPA_ADMIN_SUPPORT_EMAIL=(str, ''),
+    RESPA_ADMIN_VIEW_RESOURCE_URL=(str, ''),
+    RESPA_ADMIN_LOGO=(str, ''),
+    RESPA_ADMIN_KORO_STYLE=(str, ''),
 )
 environ.Env.read_env()
 
 # used for generating links to images, when no request context is available
 # reservation confirmation emails use this
 RESPA_IMAGE_BASE_URL = env('RESPA_IMAGE_BASE_URL')
-
-BASE_DIR = root()
 
 DEBUG_TOOLBAR_CONFIG = {
     'RESULTS_CACHE_SIZE': 100,
@@ -111,12 +144,12 @@ INSTALLED_APPS = [
 ]
 
 if env('SENTRY_DSN'):
-    RAVEN_CONFIG = {
-        'dsn': env('SENTRY_DSN'),
-        'environment': env('SENTRY_ENVIRONMENT'),
-        'release': raven.fetch_git_sha(BASE_DIR),
-    }
-    INSTALLED_APPS.append('raven.contrib.django.raven_compat')
+    sentry_sdk.init(
+        dsn=env('SENTRY_DSN'),
+        environment=env('SENTRY_ENVIRONMENT'),
+        release=get_git_revision_hash(),
+        integrations=[DjangoIntegration()]
+    )
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -268,6 +301,38 @@ RESPA_MAILS_FROM_ADDRESS = env('MAIL_DEFAULT_FROM')
 RESPA_CATERINGS_ENABLED = False
 RESPA_COMMENTS_ENABLED = False
 RESPA_DOCX_TEMPLATE = os.path.join(BASE_DIR, 'reports', 'data', 'default.docx')
+
+RESPA_ACCESSIBILITY_API_BASE_URL = env('ACCESSIBILITY_API_BASE_URL')
+RESPA_ACCESSIBILITY_API_SYSTEM_ID = env('ACCESSIBILITY_API_SYSTEM_ID')
+# system id of the servicepoints (units) in accessibility API
+RESPA_ACCESSIBILITY_API_UNIT_SYSTEM_ID = 'dd1f3b3d-6bd5-4493-a674-0b59bc12d673'
+
+RESPA_ADMIN_ACCESSIBILITY_API_BASE_URL = env('ACCESSIBILITY_API_BASE_URL')
+RESPA_ADMIN_ACCESSIBILITY_API_SYSTEM_ID = env('ACCESSIBILITY_API_SYSTEM_ID')
+RESPA_ADMIN_ACCESSIBILITY_API_SECRET = env('ACCESSIBILITY_API_SECRET')
+# list of ResourceType ids for which accessibility data input link is shown for
+RESPA_ADMIN_ACCESSIBILITY_VISIBILITY = [
+    'art_studio',  # Ateljee
+    'av5k4tflpjvq',  # Ryhmätila
+    'av5k4tlzquea',  # Neuvotteluhuone
+    'av5k7g3nc47q',  # Oppimistila
+    'avh553uaks6a',  # Soittohuone
+    'band_practice_space',  # Bändikämppä
+    'club_room',  # Kerhohuone
+    'event_space',  # Tapahtumatila
+    'game_space',  # Pelitila
+    'hall',  # Sali
+    'meeting_room',  # Kokoustila
+    'multipurpose_room',  # Monitoimihuone"
+    'studio',  # Studio
+    'workspace',  # Työtila
+]
+
+RESPA_ADMIN_LOGO = env('RESPA_ADMIN_LOGO')
+RESPA_ADMIN_KORO_STYLE = env('RESPA_ADMIN_KORO_STYLE')
+RESPA_ADMIN_VIEW_RESOURCE_URL = env('RESPA_ADMIN_VIEW_RESOURCE_URL')
+RESPA_ADMIN_INSTRUCTIONS_URL = env('RESPA_ADMIN_INSTRUCTIONS_URL')
+RESPA_ADMIN_SUPPORT_EMAIL = env('RESPA_ADMIN_SUPPORT_EMAIL')
 
 if env('MAIL_MAILGUN_KEY'):
     ANYMAIL = {

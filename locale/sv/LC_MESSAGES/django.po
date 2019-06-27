@@ -234,8 +234,20 @@ msgstr "Resursgrupp"
 msgid "Resource groups"
 msgstr "Resursgrupper"
 
+msgid "Import Service Map"
+msgstr ""
+
+msgid "Import Kirkanta"
+msgstr ""
+
 msgid "Required fields must be a subset of supported fields"
 msgstr "Obligatoriska fält måste vara en delmängd av stödda fält"
+
+msgid "Import municipalities"
+msgstr "Importera kommuner"
+
+msgid "Import divisions"
+msgstr "Importera zoner"
 
 msgid "HH:mm"
 msgstr "HH:mm"
@@ -465,6 +477,9 @@ msgstr "Tillstånd"
 msgid "Approver"
 msgstr "Godkännare"
 
+msgid "Is staff event"
+msgstr "Verkets eget evenemang"
+
 msgid "Access code"
 msgstr "Behörighetskod"
 
@@ -633,6 +648,9 @@ msgstr "Minsta bokningstid"
 msgid "Maximum reservation time"
 msgstr "Längsta bokningstid"
 
+msgid "Slot size for reservation time"
+msgstr "Spårstorlek för bokningstid"
+
 msgid "Equipment"
 msgstr "Utrustning"
 
@@ -685,6 +703,9 @@ msgstr ""
 "En URL till ett externt bokningssystem om den här resursen hanteras "
 "annorstädes"
 
+msgid "Reservation extra questions"
+msgstr "Extra frågor för bokning"
+
 msgid "resource"
 msgstr "resurs"
 
@@ -706,6 +727,9 @@ msgstr ""
 
 msgid "This value cannot be greater than max price per hour"
 msgstr ""
+
+msgid "This value must be a multiple of slot_size"
+msgstr "Detta värde måste vara ett flertal av slot_size"
 
 msgid "Main photo"
 msgstr "Huvudbild"
@@ -883,8 +907,14 @@ msgstr "Kan reserveras"
 msgid "Please check the opening hours."
 msgstr "Kontrollera öppethållningstider"
 
+msgid "Instructions"
+msgstr "Instruktioner"
+
 msgid "Log out"
 msgstr "Logga ut"
+
+msgid "Contact us"
+msgstr "Kontakta oss"
 
 msgid "Copy time period"
 msgstr "Kopiera tidsperiod"
@@ -969,6 +999,15 @@ msgstr "Synlighet"
 msgid "Edit"
 msgstr "Redigera"
 
+msgid "Accessibility"
+msgstr "Tillgänglighet"
+
+msgid "Accessibility data is entered in the Accessibility Application."
+msgstr "Tillgänglighetsdata anges i tillgänglighetsansökan."
+
+msgid "Enter accessibility data"
+msgstr "Ange tillgänglighetsdata"
+
 msgid "Booking information"
 msgstr "Bokningsinformation"
 
@@ -983,6 +1022,12 @@ msgstr "E-post notifikationer"
 
 msgid "A notification will be sent when a space is booked."
 msgstr "Ett meddelande kommer att skickas då ett utrymme har bokats."
+
+msgid "Extra questions"
+msgstr "Extra frågor"
+
+msgid "Extra questions for reservation"
+msgstr "Extra frågor för bokning"
 
 msgid "Choose from the list below"
 msgstr "Välj från listan nedan"
@@ -1014,6 +1059,9 @@ msgstr "Du kan endast välja en huvudbild."
 msgid "Add image"
 msgstr "Lägg till bild"
 
+msgid "Translations"
+msgstr "Översättningar"
+
 msgid "Authentication, terms and price"
 msgstr "Autentisering, villkor och pris"
 
@@ -1037,6 +1085,9 @@ msgstr "Funktioner"
 
 msgid "Save"
 msgstr "Spara"
+
+msgid "View resource"
+msgstr "Visa resurs"
 
 msgid "Edit resource"
 msgstr "Modifiera resurs"

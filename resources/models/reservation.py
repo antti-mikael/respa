@@ -32,7 +32,8 @@ logger = logging.getLogger(__name__)
 RESERVATION_EXTRA_FIELDS = ('reserver_name', 'reserver_phone_number', 'reserver_address_street', 'reserver_address_zip',
                             'reserver_address_city', 'billing_address_street', 'billing_address_zip',
                             'billing_address_city', 'company', 'event_description', 'event_subject', 'reserver_id',
-                            'number_of_participants', 'participants', 'reserver_email_address', 'host_name')
+                            'number_of_participants', 'participants', 'reserver_email_address', 'host_name',
+                            'reservation_extra_questions')
 
 
 class ReservationQuerySet(models.QuerySet):
@@ -105,6 +106,7 @@ class Reservation(ModifiableModel):
     approver = models.ForeignKey(settings.AUTH_USER_MODEL, verbose_name=_('Approver'),
                                  related_name='approved_reservations', null=True, blank=True,
                                  on_delete=models.SET_NULL)
+    staff_event = models.BooleanField(verbose_name=_('Is staff event'), default=False)
 
     # access-related fields
     access_code = models.CharField(verbose_name=_('Access code'), max_length=32, null=True, blank=True)
@@ -117,6 +119,7 @@ class Reservation(ModifiableModel):
                                                               null=True)
     participants = models.TextField(verbose_name=_('Participants'), blank=True)
     host_name = models.CharField(verbose_name=_('Host name'), max_length=100, blank=True)
+    reservation_extra_questions = models.TextField(verbose_name=_('Reservation extra questions'), blank=True)
 
     # extra detail fields for manually confirmed reservations
     reserver_name = models.CharField(verbose_name=_('Reserver name'), max_length=100, blank=True)
@@ -312,8 +315,8 @@ class Reservation(ModifiableModel):
         for dt in (self.begin, self.end):
             days = opening_hours.get(dt.date(), [])
             day = next((day for day in days if day['opens'] is not None and day['opens'] <= dt <= day['closes']), None)
-            if day and not is_valid_time_slot(dt, self.resource.min_period, day['opens']):
-                raise ValidationError(_("Begin and end time must match time slots"))
+            if day and not is_valid_time_slot(dt, self.resource.slot_size, day['opens']):
+                raise ValidationError(_("Begin and end time must match time slots"), code='invalid_time_slot')
 
         original_reservation = self if self.pk else kwargs.get('original_reservation', None)
         if self.resource.check_reservation_collision(self.begin, self.end, original_reservation):
@@ -321,7 +324,7 @@ class Reservation(ModifiableModel):
 
         if (self.end - self.begin) < self.resource.min_period:
             raise ValidationError(_("The minimum reservation length is %(min_period)s") %
-                                  {'min_period': humanize_duration(self.min_period)})
+                                  {'min_period': humanize_duration(self.resource.min_period)})
 
         if self.access_code:
             validate_access_code(self.access_code, self.resource.access_code_type)
@@ -331,8 +334,11 @@ class Reservation(ModifiableModel):
             user = self.user
         with translation.override(language_code):
             reserver_name = self.reserver_name
+            reserver_email_address = self.reserver_email_address
             if not reserver_name and self.user and self.user.get_display_name():
                 reserver_name = self.user.get_display_name()
+            if not reserver_email_address and user and user.email:
+                reserver_email_address = user.email
             context = {
                 'resource': self.resource.name,
                 'begin': localize_datetime(self.begin),
@@ -344,6 +350,9 @@ class Reservation(ModifiableModel):
                 'host_name': self.host_name,
                 'reserver_name': reserver_name,
                 'event_subject': self.event_subject,
+                'event_description': self.event_description,
+                'reserver_email_address': reserver_email_address,
+                'reserver_phone_number': self.reserver_phone_number,
             }
             if self.resource.unit:
                 context['unit'] = self.resource.unit.name

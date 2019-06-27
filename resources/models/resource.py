@@ -32,6 +32,7 @@ from guardian.core import ObjectPermissionChecker
 from ..auth import is_authenticated_user, is_general_admin
 from ..errors import InvalidImage
 from ..fields import EquipmentField
+from .accessibility import AccessibilityValue, AccessibilityViewpoint, ResourceAccessibility
 from .base import AutoIdentifiedModel, NameIdentifiedModel, ModifiableModel
 from .utils import create_datetime_days_from_now, get_translated, get_translated_name, humanize_duration
 from .equipment import Equipment
@@ -189,6 +190,8 @@ class Resource(ModifiableModel, AutoIdentifiedModel):
     min_period = models.DurationField(verbose_name=_('Minimum reservation time'),
                                       default=datetime.timedelta(minutes=30))
     max_period = models.DurationField(verbose_name=_('Maximum reservation time'), null=True, blank=True)
+    slot_size = models.DurationField(verbose_name=_('Slot size for reservation time'),
+                                     default=datetime.timedelta(minutes=30))
 
     equipment = EquipmentField(Equipment, through='ResourceEquipment', verbose_name=_('Equipment'))
     max_reservations_per_user = models.PositiveIntegerField(verbose_name=_('Maximum number of active reservations per user'),
@@ -230,6 +233,7 @@ class Resource(ModifiableModel, AutoIdentifiedModel):
         verbose_name=_('External reservation URL'),
         help_text=_('A link to an external reservation system if this resource is managed elsewhere'),
         null=True, blank=True)
+    reservation_extra_questions = models.TextField(verbose_name=_('Reservation extra questions'), blank=True)
 
     objects = ResourceQuerySet.as_manager()
 
@@ -519,6 +523,17 @@ class Resource(ModifiableModel, AutoIdentifiedModel):
             return is_general_admin(user)
         return self.unit.is_admin(user)
 
+    def is_manager(self, user):
+        """
+        Check if the given user is a manager of this resource.
+
+        :type user: users.models.User
+        :rtype: bool
+        """
+        if not self.unit:
+            return is_general_admin(user)
+        return self.unit.is_manager(user)
+
     def _has_perm(self, user, perm, allow_admin=True):
         if not is_authenticated_user(user):
             return False
@@ -609,6 +624,8 @@ class Resource(ModifiableModel, AutoIdentifiedModel):
                 raise ValidationError(
                     {'min_price_per_hour': _('This value cannot be greater than max price per hour')}
                 )
+        if self.min_period % self.slot_size != datetime.timedelta(0):
+            raise ValidationError({'min_period': _('This value must be a multiple of slot_size')})
 
 
 class ResourceImage(ModifiableModel):

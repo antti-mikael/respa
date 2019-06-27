@@ -6,11 +6,12 @@ from django.http import HttpResponseBadRequest, HttpResponseRedirect
 from django.urls import reverse
 from django.views.generic.base import TemplateView
 from tamusers.providers.tampere.views import TampereOAuth2Adapter
+from respa_admin.views.base import ExtraContextMixin
 
 from ..auth import is_allowed_user
 
 
-class LoginView(TemplateView):
+class LoginView(ExtraContextMixin, TemplateView):
     template_name = "respa_admin/login.html"
 
     def get_context_data(self, login_failed=False, **kwargs):
