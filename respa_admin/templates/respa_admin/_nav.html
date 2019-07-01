@@ -9,6 +9,10 @@
         <div class="navbar-header">
             {% if logo_url %}
                 <a href="{% url 'respa_admin:index' %}"><img class="navbar-brand ra-icon" src="{{ logo_url }}" alt="Logo"></a>
+            {% else %}
+                <a class="navbar-brand hel-icon" href="{% url 'respa_admin:index' %}">
+                    <h3>Respa Admin</h3>
+                </a>
             {% endif %}
         </div>
 
