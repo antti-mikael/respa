@@ -67,8 +67,12 @@ env = environ.Env(
     RESPA_ADMIN_INSTRUCTIONS_URL=(str, ''),
     RESPA_ADMIN_SUPPORT_EMAIL=(str, ''),
     RESPA_ADMIN_VIEW_RESOURCE_URL=(str, ''),
+    RESPA_ADMIN_VIEW_UNIT_URL=(str, ''),
     RESPA_ADMIN_LOGO=(str, ''),
     RESPA_ADMIN_KORO_STYLE=(str, ''),
+    RESPA_PAYMENTS_ENABLED=(bool, False),
+    RESPA_PAYMENTS_PROVIDER_CLASS=(str, ''),
+    RESPA_PAYMENTS_PAYMENT_WAITING_TIME=(int, 15),
 )
 environ.Env.read_env()
 
@@ -96,9 +100,10 @@ SITE_ID = 1
 # Application definition
 INSTALLED_APPS = [
     'tamusers',
+    'resources',
     'modeltranslation',
-    'parler',
     'grappelli',
+    'parler',
     'django.forms',
     'django.contrib.sites',
     'django.contrib.admin',
@@ -130,12 +135,12 @@ INSTALLED_APPS = [
     'munigeo',
 
     'reports',
-    'resources',
     'users',
     'caterings',
     'comments',
     'notifications.apps.NotificationsConfig',
     'kulkunen',
+    'payments',
 
     'respa_exchange',
     'respa_admin',
@@ -277,6 +282,11 @@ REST_FRAMEWORK = {
         "rest_framework.authentication.BasicAuthentication",
     ] if DEBUG else []),
     'DEFAULT_PAGINATION_CLASS': 'resources.pagination.DefaultPagination',
+    'TEST_REQUEST_DEFAULT_FORMAT': 'json',
+    'DEFAULT_RENDERER_CLASSES': (
+        'rest_framework.renderers.JSONRenderer',
+        'respa.renderers.ResourcesBrowsableAPIRenderer',
+    )
 }
 
 JWT_AUTH = {
@@ -331,6 +341,7 @@ RESPA_ADMIN_ACCESSIBILITY_VISIBILITY = [
 RESPA_ADMIN_LOGO = env('RESPA_ADMIN_LOGO')
 RESPA_ADMIN_KORO_STYLE = env('RESPA_ADMIN_KORO_STYLE')
 RESPA_ADMIN_VIEW_RESOURCE_URL = env('RESPA_ADMIN_VIEW_RESOURCE_URL')
+RESPA_ADMIN_VIEW_UNIT_URL = env('RESPA_ADMIN_VIEW_UNIT_URL')
 RESPA_ADMIN_INSTRUCTIONS_URL = env('RESPA_ADMIN_INSTRUCTIONS_URL')
 RESPA_ADMIN_SUPPORT_EMAIL = env('RESPA_ADMIN_SUPPORT_EMAIL')
 
@@ -344,6 +355,15 @@ if env('MAIL_MAILGUN_KEY'):
 
 RESPA_ADMIN_USERNAME_LOGIN = env.bool(
     'RESPA_ADMIN_USERNAME_LOGIN', default=True)
+
+RESPA_PAYMENTS_ENABLED = env('RESPA_PAYMENTS_ENABLED')
+
+# Dotted path to the active payment provider class, see payments.providers init.
+# Example value: 'payments.providers.BamboraPayformProvider'
+RESPA_PAYMENTS_PROVIDER_CLASS = env('RESPA_PAYMENTS_PROVIDER_CLASS')
+
+# amount of minutes before orders in state "waiting" will be set to state "expired"
+RESPA_PAYMENTS_PAYMENT_WAITING_TIME = env('RESPA_PAYMENTS_PAYMENT_WAITING_TIME')
 
 # local_settings.py can be used to override environment-specific settings
 # like database and email that differ between development and production.

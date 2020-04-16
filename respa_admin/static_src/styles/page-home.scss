@@ -13,7 +13,7 @@ main {
   section.hero-section {
     position: relative;
     padding-top: 20px;
-    padding-bottom: 72px; 
+    padding-bottom: 72px;
 
     &:before {
       content: " ";
@@ -22,32 +22,32 @@ main {
       top: 0;
       bottom: 0;
       width: 100%;
-      background-color: $hel-fog;
+      background-color: $theme-secondary-light;
       transform: rotate(180deg);
     }
 
     &.koro-basic:before {
       background-color: transparent;
-      @include koro("basic", $hel-fog, 400);
+      @include koro("basic", $theme-secondary-light, 400);
     }
 
     &.koro-pulse:before {
       background-color: transparent;
-      @include koro("pulse", $hel-fog, 400);
+      @include koro("pulse", $theme-secondary-light, 400);
     }
 
     &.koro-beat:before {
       background-color: transparent;
-      @include koro("beat", $hel-fog, 400);
+      @include koro("beat", $theme-secondary-light, 400);
     }
     &.koro-storm:before {
       background-color: transparent;
-      @include koro("storm", $hel-fog, 400);
+      @include koro("storm", $theme-secondary-light, 400);
     }
 
     &.koro-wave:before {
       background-color: transparent;
-      @include koro("wave", $hel-fog, 400);
+      @include koro("wave", $theme-secondary-light, 400);
     }
 
     .container {
@@ -120,7 +120,8 @@ main {
     }
   }
 
-  section.resources {
+  section.resources,
+  section.units {
 
     .container {
       padding: 32px 0 100px;
@@ -147,7 +148,14 @@ main {
       }
     }
 
-    .resource-list ul li {
+    /* Unit list has only two columns */
+    .unit-list ul li div.panel div.panel-body,
+    .unit-list ul li.list-group-item.sort-bar {
+      grid-template-columns: 0px 7fr 3fr 2fr;
+    }
+
+    .resource-list ul li,
+    .unit-list ul li {
       $list-item-height: 100px;
       $table-template: $list-item-height 4fr 3fr 3fr 2fr;
 

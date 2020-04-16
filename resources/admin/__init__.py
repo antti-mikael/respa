@@ -17,6 +17,8 @@ from django.template.response import TemplateResponse
 from guardian import admin as guardian_admin
 from image_cropping import ImageCroppingMixin
 from modeltranslation.admin import TranslationAdmin, TranslationStackedInline
+
+from resources.models import RESERVATION_EXTRA_FIELDS
 from .base import ExtraReadonlyFieldsOnUpdateMixin, CommonExcludeMixin, PopulateCreatedAndModifiedMixin
 from resources.admin.period_inline import PeriodInline
 
@@ -26,6 +28,7 @@ from ..models import (
     ResourceEquipment, ResourceGroup, ResourceImage, ResourceType, TermsOfUse,
     Unit, UnitAuthorization, UnitIdentifier, UnitGroup, UnitGroupAuthorization)
 from munigeo.models import Municipality
+from rest_framework.authtoken.admin import Token
 
 logger = logging.getLogger(__name__)
 
@@ -223,8 +226,10 @@ class ResourceEquipmentAdmin(PopulateCreatedAndModifiedMixin, CommonExcludeMixin
 class ReservationAdmin(PopulateCreatedAndModifiedMixin, CommonExcludeMixin, ExtraReadonlyFieldsOnUpdateMixin,
                        admin.ModelAdmin):
     extra_readonly_fields_on_update = ('access_code',)
+    list_display = ('__str__', 'type')
+    list_filter = ('type',)
     search_fields = ('user__first_name', 'user__last_name', 'user__username', 'user__email')
-    raw_id_fields = ('user',)
+    raw_id_fields = ('user', 'resource')
 
 
 class ResourceTypeAdmin(PopulateCreatedAndModifiedMixin, CommonExcludeMixin, TranslationAdmin):
@@ -240,6 +245,7 @@ class PurposeAdmin(PopulateCreatedAndModifiedMixin, CommonExcludeMixin, Translat
 
 
 class TermsOfUseAdmin(PopulateCreatedAndModifiedMixin, CommonExcludeMixin, TranslationAdmin):
+    list_display = ['name', 'terms_type']
     pass
 
 
@@ -333,6 +339,42 @@ class ResourceAccessibilityAdmin(admin.ModelAdmin):
     search_fields = ('resource__name', 'viewpoint__name')
 
 
+class ReservationMetadataFieldForm(forms.ModelForm):
+    class Meta:
+        model = ReservationMetadataField
+        fields = ('field_name',)
+        widgets = {
+            'field_name': forms.Select()
+        }
+
+
+class ReservationMetadataFieldAdmin(admin.ModelAdmin):
+    form = ReservationMetadataFieldForm
+    ordering = ('field_name',)
+
+    def get_label(self, obj):
+        return str(obj.field_name)
+
+    def formfield_for_dbfield(self, db_field, **kwargs):
+        if db_field.name == 'field_name':
+            # limit choices to valid field names that are not yet in use
+            all_choices = [(f, str(f)) for f in sorted(RESERVATION_EXTRA_FIELDS)]
+            kwargs['widget'].choices = [
+                c for c in all_choices
+                if c[0] not in ReservationMetadataField.objects.values_list('field_name', flat=True)
+            ]
+        return super().formfield_for_dbfield(db_field, **kwargs)
+
+
+# Override TokenAdmin of django rest framework
+# to use raw_id_field on user
+class RespaTokenAdmin(admin.ModelAdmin):
+    list_display = ('key', 'user', 'created')
+    fields = ('user',)
+    ordering = ('-created',)
+    raw_id_fields = ('user',)
+
+
 admin_site.register(ResourceImage, ResourceImageAdmin)
 admin_site.register(Resource, ResourceAdmin)
 admin_site.register(Reservation, ReservationAdmin)
@@ -344,7 +386,7 @@ admin_site.register(Equipment, EquipmentAdmin)
 admin_site.register(ResourceEquipment, ResourceEquipmentAdmin)
 admin_site.register(EquipmentCategory, EquipmentCategoryAdmin)
 admin_site.register(TermsOfUse, TermsOfUseAdmin)
-admin_site.register(ReservationMetadataField)
+admin_site.register(ReservationMetadataField, ReservationMetadataFieldAdmin)
 admin_site.register(ReservationMetadataSet, ReservationMetadataSetAdmin)
 admin.site.register(ResourceGroup, ResourceGroupAdmin)
 if admin.site.is_registered(Municipality):
@@ -353,3 +395,7 @@ admin.site.register(Municipality, MunicipalityAdmin)
 admin.site.register(AccessibilityViewpoint, AccessibilityViewpointAdmin)
 admin.site.register(AccessibilityValue)
 admin.site.register(ResourceAccessibility, ResourceAccessibilityAdmin)
+
+if admin.site.is_registered(Token):
+    admin.site.unregister(Token)
+admin_site.register(Token, RespaTokenAdmin)

@@ -6,8 +6,8 @@ from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
 from enumfields import EnumField
 
-from ..auth import is_authenticated_user, is_general_admin
-from ..enums import UnitAuthorizationLevel
+from ..auth import is_authenticated_user, is_general_admin, is_unit_admin, is_unit_manager, is_unit_viewer, is_superuser
+from ..enums import UnitAuthorizationLevel, UnitGroupAuthorizationLevel
 from .base import AutoIdentifiedModel, ModifiableModel
 from .utils import create_datetime_days_from_now, get_translated, get_translated_name
 from .availability import get_opening_hours
@@ -30,6 +30,30 @@ class UnitQuerySet(models.QuerySet):
         via_unit = Q(
             authorizations__in=(
                 user.unit_authorizations.at_least_manager_level()))
+
+        return self.filter(via_unit_group | via_unit).distinct()
+
+    def by_roles(self, user, roles):
+        if not is_authenticated_user(user) or not roles:
+            return self.none()
+
+        if is_superuser(user):
+            return self
+
+        if ((UnitAuthorizationLevel.admin in roles or UnitGroupAuthorizationLevel.admin in roles)
+            and is_general_admin(user)):
+            return self
+
+        unit_roles = filter(lambda role : isinstance(role, UnitAuthorizationLevel), roles)
+        unit_group_roles = filter(lambda role : isinstance(role, UnitGroupAuthorizationLevel), roles)
+
+        via_unit_group = Q(
+            unit_groups__authorizations__in=(
+                user.unit_group_authorizations.filter(level__in=unit_group_roles)))
+
+        via_unit = Q(
+            authorizations__in=(
+                user.unit_authorizations.filter(level__in=unit_roles)))
 
         return self.filter(via_unit_group | via_unit).distinct()
 
@@ -72,6 +96,10 @@ class Unit(ModifiableModel, AutoIdentifiedModel):
                                                                       null=True, blank=True)
     reservable_min_days_in_advance = models.PositiveSmallIntegerField(verbose_name=_('Reservable min. days in advance'),
                                                                       null=True, blank=True)
+    data_source = models.CharField(max_length=128, blank=True, default='',
+                                   verbose_name=_('External data source'))
+    data_source_hours = models.CharField(max_length=128, blank=True, default='',
+                                         verbose_name=_('External data source for opening hours'))
 
     objects = UnitQuerySet.as_manager()
 
@@ -114,13 +142,23 @@ class Unit(ModifiableModel, AutoIdentifiedModel):
     def is_admin(self, user):
         return is_authenticated_user(user) and (
             is_general_admin(user) or
-            user.unit_authorizations.to_unit(self).admin_level().exists() or
-            (user.unit_group_authorizations
-             .to_unit(self).admin_level().exists()))
+            is_unit_admin(user.unit_authorizations.all(), user.unit_group_authorizations.all(), self))
 
     def is_manager(self, user):
-        return self.is_admin(user) or (is_authenticated_user(user) and (
-            user.unit_authorizations.to_unit(self).manager_level().exists()))
+        return is_authenticated_user(user) and is_unit_manager(user.unit_authorizations.all(), self)
+
+    def is_viewer(self, user):
+        return is_authenticated_user(user) and is_unit_viewer(user.unit_authorizations.all(), self)
+
+    def has_imported_data(self):
+        return self.data_source != ''
+
+    def has_imported_hours(self):
+        return self.data_source_hours != ''
+
+    def is_editable(self):
+        """ Whether unit is editable by normal admin users or not """
+        return not (self.has_imported_data() or self.has_imported_hours())
 
 
 class UnitAuthorizationQuerySet(models.QuerySet):
