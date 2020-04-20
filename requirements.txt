@@ -6,7 +6,7 @@
 #
 --no-binary psycopg2
 
--e git+git://github.com/Tampere/django-tamusers.git@d4f78bfb1cbff278d02b1bcccd330393f8e78d86#egg=django-tamusers
+-e git+git://github.com/Tampere/django-tamusers.git@3b93b96cacb4a9cb07a8e932dd5c3a8aa465dfc4#egg=django-tamusers
 arrow==0.13.0
 asn1crypto==0.24.0        # via cryptography
 atomicwrites==1.2.1       # via pytest
