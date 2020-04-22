@@ -11,8 +11,7 @@ $brand-dark:   #009246; // $hel-tram
 
 @import "../../node_modules/hel-bootstrap-3/src/sass/helsinki-variables";
 
-// @import application-variables;
-@import "../../node_modules/hel-bootstrap-3/src/sass/application-variables";
+@import "./application-variables";
 
 @import "../../node_modules/hel-bootstrap-3/src/sass/theme-bootstrap-variables";
 
@@ -31,4 +30,6 @@ $icon-font-path: "~bootstrap-sass/assets/fonts/bootstrap/";
 @import "./page-office";
 @import "./user-matrix";
 @import "./page-resource";
+@import "./page-user-management";
+@import "./page-user-management-list";
 @import "./common";

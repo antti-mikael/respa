@@ -35,7 +35,7 @@
   vertical-align: middle;
   height: $input-height-default;
   padding: $padding-large-vertical 24px;
-  background-color: $hel-copper;
+  background-color: $theme-success-light;
   border: 0;
   color: $white;
   text-decoration: none;
@@ -80,64 +80,69 @@
       }
     }
 
-    .accordion-item {
-      margin-bottom: 2px;
 
-      .range-input {
-        padding: 0;
-        flex-wrap: nowrap;
+    input {
+      margin: 0;
+      width: 75px;
+    }
 
-        span {
-          margin: 0;
-          padding: 16px $padding-large-horizontal;
-          transform: scaleY(0.5);
-        }
-      }
-
-      .text-input {
-        margin: 0;
-        min-width: 120px;
-      }
-
-      .hours-table-header {
-
-        .schedule {
-          margin-right: 36px;
-        }
-      }
+    .text-input {
+      margin: 0;
+      min-width: 120px;
     }
   }
 }
 
-.weekday-row {
-  border-bottom: solid 1px $dark-gray;
+/* Headline for list pages */
+.headline {
 
-  .weekday-checkbox {
-    margin: auto 0;
-    padding: 0;
+  & > * {
+    margin-top: 42px;
+  }
 
-    label {
-      font-size: $font-size-large;
-      padding-left: 32px;
+  .listing-report {
+    display: flex;
+    flex-wrap: wrap;
+
+    .col-sm-6 {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    span.listing-count {
+      font-size: 24px;
     }
   }
 
-  .add-time {
-    padding-left: 32px;
-    font-weight: lighter;
-    background-color: transparent;
-    display: inline-flex;
+  .listing-search {
+    max-width: 700px;
 
-    span {
-      font-size: $font-size-large;
+    .input-group > *, span.input-group-btn button {
+      height: $input-height-default;
+      background-color: $white;
+      margin: 0;
     }
-  }
 
-  .copy-next {
-    background-color: $hel-copper;
-    margin: 5px 0;
-    color: $white;
-    height: 40px;
+    span.input-group-addon {
+      background-color: transparent;
+      border: 0;
+      padding-left: 0;
+      padding-right: 24px;
+      font-size: $font-size-h5;
+    }
+
+    span.input-group-btn button {
+      width: $input-height-default;
+
+      span {
+        transform: scale(1.5);
+      }
+    }
+
+    input {
+      border-right: 0;
+    }
   }
 }
 

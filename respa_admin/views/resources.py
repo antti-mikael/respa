@@ -1,12 +1,17 @@
 from django.conf import settings
 from django.contrib import messages
-from django.db.models import FieldDoesNotExist
-from django.http import HttpResponseRedirect
+from django.db.models import FieldDoesNotExist, Q
+from django.http import Http404, HttpResponseRedirect
 from django.template.response import TemplateResponse
 from django.urls import reverse_lazy
-from django.views.generic import CreateView, ListView
 from django.utils.translation import ugettext_lazy as _
+from django.views.generic import CreateView, ListView, UpdateView
+from guardian.shortcuts import assign_perm, remove_perm
 from respa_admin.views.base import ExtraContextMixin
+from resources.enums import UnitGroupAuthorizationLevel, UnitAuthorizationLevel
+from resources.auth import is_any_admin
+
+from users.models import User
 
 from resources.models import (
     Resource,
@@ -15,16 +20,17 @@ from resources.models import (
     ResourceImage,
     ResourceType,
     Unit,
+    UnitGroup
 )
-from respa_admin import forms
-
+from respa_admin import accessibility_api, forms
 from respa_admin.forms import (
+    ResourceForm,
+    UserForm,
     get_period_formset,
     get_resource_image_formset,
-    ResourceForm,
+    get_unit_authorization_formset
 )
-
-from respa_admin import accessibility_api
+from respa_admin.views.base import PeriodMixin
 
 
 class ResourceListView(ExtraContextMixin, ListView):
@@ -81,6 +87,156 @@ class ResourceListView(ExtraContextMixin, ListView):
         return qs
 
 
+class ManageUserPermissionsView(ExtraContextMixin, UpdateView):
+    model = User
+    context_object_name = 'user_object'
+    pk_url_kwarg = 'user_id'
+    form_class = UserForm
+    template_name = 'respa_admin/resources/edit_user.html'
+
+    def get_success_url(self, **kwargs):
+        return reverse_lazy('respa_admin:edit-user', kwargs={'user_id': self.object.pk})
+
+    def _validate_forms(self, form, unit_authorization_formset):
+        valid_form = form.is_valid()
+        valid_unit_authorization_formset = unit_authorization_formset.is_valid()
+
+        if valid_unit_authorization_formset:
+            perms_are_empty_or_marked_for_deletion = all(
+                {"DELETE": True}.items() <= dict.items() or len(dict) == 0
+                for dict in unit_authorization_formset.cleaned_data
+            )
+
+        if not form.cleaned_data['is_staff'] and not perms_are_empty_or_marked_for_deletion:
+            form.add_error(None, _('You can\'t remove staff status from user with existing permissions'))
+            return False
+
+        return valid_form and valid_unit_authorization_formset
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['unit_authorization_formset'] = get_unit_authorization_formset(
+            request=self.request,
+            instance=self.object,
+        )
+        return context
+
+    def post(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        form = self.get_form()
+
+        unit_authorization_formset = get_unit_authorization_formset(request=request, instance=self.get_object())
+
+        if self._validate_forms(form, unit_authorization_formset):
+            return self.forms_valid(form, unit_authorization_formset)
+        else:
+            return self.forms_invalid(form, unit_authorization_formset)
+
+    def forms_valid(self, form, unit_authorization_formset):
+        self.object = form.save()
+        unit_authorization_formset.instance = self.object
+        for form in unit_authorization_formset.cleaned_data:
+            if 'subject' in form and 'level' in form:
+                if form['can_approve_reservation']:
+                    assign_perm('unit:can_approve_reservation', self.object, form['subject'])
+                else:
+                    remove_perm('unit:can_approve_reservation', self.object, form['subject'])
+
+        unit_authorization_formset.save()
+        return HttpResponseRedirect(self.get_success_url())
+
+    def forms_invalid(self, form, unit_authorization_formset):
+        messages.error(self.request, _('Failed to save. Please check the form for errors.'))
+
+        return self.render_to_response(
+            self.get_context_data(
+                form=form,
+                unit_authorization_formset=unit_authorization_formset,
+            )
+        )
+
+
+class ManageUserPermissionsListView(ExtraContextMixin, ListView):
+    model = Unit
+    context_object_name = 'units'
+    template_name = 'respa_admin/user_management.html'
+    user_list_template_name = 'respa_admin/resources/_unit_user_list.html'
+    paginate_by = 10
+
+    def get(self, request, *args, **kwargs):
+        get_params = request.GET
+        self.selected_unit = get_params.get('selected_unit')
+        return super().get(request, *args, **kwargs)
+
+    def dispatch(self, request, *args, **kwargs):
+        if not is_any_admin(request.user):
+            raise Http404
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_all_available_units(self):
+        if self.request.user.is_superuser:
+            all_units = self.model.objects.all().prefetch_related('authorizations').exclude(authorizations__authorized__isnull=True)
+            return all_units
+
+        unit_filters = Q(authorizations__authorized=self.request.user,
+                         authorizations__level__in={
+                             UnitAuthorizationLevel.admin,
+                         })
+        unit_group_filters = Q(unit_groups__authorizations__authorized=self.request.user,
+                               unit_groups__authorizations__level__in={
+                                   UnitGroupAuthorizationLevel.admin,
+                               })
+        all_available_units = self.model.objects.filter(unit_filters | unit_group_filters).prefetch_related('authorizations')
+        return all_available_units.exclude(authorizations__authorized__isnull=True).distinct('name')
+
+    def get_queryset(self):
+        qs = self.get_all_available_units()
+        if self.selected_unit:
+            qs = qs.filter(id=self.selected_unit)
+
+        return qs
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data()
+        context['selected_unit'] = self.selected_unit or ''
+        context['all_available_units'] = self.get_all_available_units()
+        context['user_list_template_name'] = self.user_list_template_name
+        return context
+
+
+class ManageUserPermissionsSearchView(ExtraContextMixin, ListView):
+    model = User
+    context_object_name = 'users'
+    template_name = 'respa_admin/user_management.html'
+    user_list_template_name = 'respa_admin/resources/_user_list.html'
+
+    def get(self, request, *args, **kwargs):
+        get_params = request.GET
+        self.search_query = get_params.get('search_query')
+        return super().get(request, *args, **kwargs)
+
+    def get_queryset(self):
+        if self.search_query and '@' in self.search_query:
+            qs = self.model.objects.filter(email__iexact=self.search_query)
+            return qs
+        elif self.search_query and ' ' in self.search_query:
+            try:
+                name1, name2 = self.search_query.split()
+                filters = Q(first_name__iexact=name1, last_name__iexact=name2) | Q(first_name__iexact=name2, last_name__iexact=name1)
+                qs = self.model.objects.filter(filters)
+                return qs
+            except ValueError:
+                return qs
+        return self.model.objects.none()
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data()
+        context['user_list_template_name'] = self.user_list_template_name
+        context['search_query'] = self.search_query or None
+
+        return context
+
+
 class RespaAdminIndex(ResourceListView):
     paginate_by = 7
     template_name = 'respa_admin/index.html'
@@ -90,7 +246,7 @@ def admin_office(request):
     return TemplateResponse(request, 'respa_admin/page_office.html')
 
 
-class SaveResourceView(ExtraContextMixin, CreateView):
+class SaveResourceView(ExtraContextMixin, PeriodMixin, CreateView):
     """
     View for saving new resources and updating existing resources.
     """
@@ -128,11 +284,6 @@ class SaveResourceView(ExtraContextMixin, CreateView):
 
         form = self.get_form()
 
-        period_formset_with_days = get_period_formset(
-            self.request,
-            instance=self.object,
-        )
-
         resource_image_formset = get_resource_image_formset(
             self.request,
             instance=self.object,
@@ -146,7 +297,6 @@ class SaveResourceView(ExtraContextMixin, CreateView):
             self.get_context_data(
                 accessibility_data_link=accessibility_data_link,
                 form=form,
-                period_formset_with_days=period_formset_with_days,
                 resource_image_formset=resource_image_formset,
                 trans_fields=trans_fields,
                 page_headline=page_headline,
@@ -185,7 +335,7 @@ class SaveResourceView(ExtraContextMixin, CreateView):
 
         form = self.get_form()
 
-        period_formset_with_days = get_period_formset(request=request, instance=self.object)
+        period_formset_with_days = self.get_period_formset()
         resource_image_formset = get_resource_image_formset(request=request, instance=self.object)
 
         if self._validate_forms(form, period_formset_with_days, resource_image_formset):
@@ -204,35 +354,21 @@ class SaveResourceView(ExtraContextMixin, CreateView):
 
     def forms_valid(self, form, period_formset_with_days, resource_image_formset):
         self.object = form.save()
-
-        self._delete_extra_periods_days(period_formset_with_days)
-        period_formset_with_days.instance = self.object
-        period_formset_with_days.save()
-
         self._save_resource_purposes()
         self._delete_extra_images(resource_image_formset)
         self._save_resource_images(resource_image_formset)
-        self.object.update_opening_hours()
-
+        self.save_period_formset(period_formset_with_days)
         return HttpResponseRedirect(self.get_success_url())
 
     def forms_invalid(self, form, period_formset_with_days, resource_image_formset):
-        messages.error(self.request, 'Tallennus epäonnistui. Tarkista lomakkeen virheet.')
+        messages.error(self.request, _('Failed to save. Please check the form for errors.'))
 
         # Extra forms are not added upon post so they
         # need to be added manually below. This is because
         # the front-end uses the empty 'extra' forms for cloning.
         temp_image_formset = get_resource_image_formset()
-        temp_period_formset = get_period_formset()
-        temp_day_form = temp_period_formset.forms[0].days.forms[0]
-
         resource_image_formset.forms.append(temp_image_formset.forms[0])
-        period_formset_with_days.forms.append(temp_period_formset.forms[0])
-
-        # Add a nested empty day to each period as well.
-        for period in period_formset_with_days:
-            period.days.forms.append(temp_day_form)
-
+        period_formset_with_days = self.add_empty_forms(period_formset_with_days)
         trans_fields = forms.get_translated_field_count(resource_image_formset)
 
         return self.render_to_response(
@@ -279,29 +415,6 @@ class SaveResourceView(ExtraContextMixin, CreateView):
             return
 
         ResourceImage.objects.filter(resource=self.object).exclude(pk__in=image_ids).delete()
-
-    def _delete_extra_periods_days(self, period_formset_with_days):
-        data = period_formset_with_days.data
-        period_ids = get_formset_ids('periods', data)
-
-        if period_ids is None:
-            return
-
-        Period.objects.filter(resource=self.object).exclude(pk__in=period_ids).delete()
-        period_count = to_int(data.get('periods-TOTAL_FORMS'))
-
-        if not period_count:
-            return
-
-        for i in range(period_count):
-            period_id = to_int(data.get('periods-{}-id'.format(i)))
-
-            if period_id is None:
-                continue
-
-            day_ids = get_formset_ids('days-periods-{}'.format(i), data)
-            if day_ids is not None:
-                Day.objects.filter(period=period_id).exclude(pk__in=day_ids).delete()
 
 
 def get_formset_ids(formset_name, data):

@@ -1,4 +1,95 @@
-import { getEmptyDayItem, getEmptyPeriodItem, getPeriodsList } from "./resourceForm";
+let emptyPeriodItem = null;
+let emptyDayItem = null;
+
+export function initializePeriods() {
+  enablePeriodEventHandlers();
+  enableAddNewPeriod();
+  setPeriodAndDayItems();
+  initialSortPeriodDays();
+}
+
+function getEmptyPeriodItem() {
+  return emptyPeriodItem;
+}
+
+function getEmptyDayItem() {
+  return emptyDayItem;
+}
+
+function getPeriodsList() {
+  return document.getElementById('current-periods-list').children;
+}
+
+function initialSortPeriodDays() {
+  let periods = getPeriodsList();
+
+  for (let i = 0; i < periods.length; i++) {
+    sortPeriodDays($(periods[i]));
+  }
+}
+
+function enablePeriodEventHandlers() {
+  let periods = getPeriodsList();
+
+  for (let i = 0; i < periods.length; i++) {
+    const copyButton = $('#copy-time-period-' + i);
+    copyButton.click(() => copyTimePeriod(periods[i]));
+
+    const $dates = $('#date-inputs-' + i);
+    $dates.change(() => modifyDays($(periods[i]), $dates));
+
+    // This binds the event also to the extra element that is later cloned to
+    // emptyDayItem. New day items will then have event already bound.
+    // This works only when event handlers are bound before setClonableItems
+    // is called.
+    const $copyTimeButtons = $(periods[i]).find('.copy-next');
+    $copyTimeButtons.click((event) => copyTimeToNext(event));
+
+    const removeButton = $('#remove-button-' + i);
+    removeButton.click(() => removePeriod(periods[i]));
+  }
+}
+
+/*
+* Bind event for adding a new period to its corresponding button.
+* */
+function enableAddNewPeriod() {
+  let button = document.getElementById('add-new-hour');
+  button.addEventListener('click', addNewPeriod, false);
+}
+
+/*
+* Set empty day and period variables.
+* */
+function setPeriodAndDayItems() {
+  //Get the last period in the list.
+  let $periodList = $('#current-periods-list')[0].children;
+  let $servedPeriodItem = $($periodList[$periodList.length-1]);
+
+  //Get the last day from the period.
+  let $daysList = $servedPeriodItem.find('#period-days-list')[0].children;
+  let $servedDayItem = $daysList[$daysList.length-1];
+
+  emptyDayItem = $($servedDayItem).clone(true);
+  emptyDayItem.removeClass('original-day');  // added days are not original. used for sorting formset indices.
+  emptyPeriodItem = $($servedPeriodItem).clone();
+
+  $servedDayItem.remove();
+  $servedPeriodItem.remove();
+
+  //Iterate the existing days in all periods and remove the last one
+  //which has been added from the backend.
+  if ($periodList.length > 0) {
+    for (let i = 0; i < $periodList.length; i++) {
+      let $days = $($periodList[i]).find('#period-days-list');
+      $days.children().last().remove();
+      updateTotalDays($($periodList[i]));
+    }
+  }
+
+  updatePeriodsTotalForms();
+}
+
 
 /*
 * Iterate all periods and update their input indices.
@@ -51,7 +142,7 @@ function updatePeriodChildren(periodItem, idNum) {
 /*
 * Sort period days based on day of week, beginning of the selection first.
 */
-export function sortPeriodDays($periodItem) {
+function sortPeriodDays($periodItem) {
   let $daysListContainer = $periodItem.find('#period-days-list');
   let $daysList = $daysListContainer.children();
   let $dateInputs = $periodItem.find("[id^='date-input'] input");
@@ -84,7 +175,7 @@ export function sortPeriodDays($periodItem) {
 function updatePeriodDaysIndices($periodItem) {
   let originalDaysList = $periodItem.find('.weekday-row.original-day');
   let newDaysList = $periodItem.find('.weekday-row:not(.original-day)');
-  let periodIdNum = $periodItem[0].id.match(/[0-9]/)[0];
+  let periodIdNum = $periodItem[0].id.match(/[0-9]+/)[0];
 
   const setIndex = function (dayIndex, day) {
     $(day).attr('id', $(day).attr('id').replace(/-(\d+)-(\d+)/, '-' + periodIdNum + '-' + dayIndex));
@@ -107,7 +198,7 @@ function updatePeriodDaysIndices($periodItem) {
         $(cellInput).attr('id', $(cellInput).attr('id').replace(/-(\d+)-(\d+)-/, '-' + periodIdNum + '-' + dayIndex + '-'));
         $(cellInput).attr('name', $(cellInput).attr('name').replace(/-(\d+)-(\d+)-/, '-' + periodIdNum + '-' + dayIndex + '-'));
       });
-    })
+    });
   };
 
   let dayIndex = 0;
@@ -178,7 +269,7 @@ function restoreDaysMgmtFormValues(periodItem) {
 * Update the TOTAL_FORMS value in the management form of the days
 * in the corresponding period.
 * */
-export function updateTotalDays($periodItem) {
+function updateTotalDays($periodItem) {
   let amountOfDays = $periodItem.find('#period-days-list').children().length;
   let amountOfOriginalDays = $periodItem.find('#period-days-list').children('.weekday-row.original-day').length;
   let daysMgmtForm = $periodItem.find('#days-management-form');
@@ -234,7 +325,7 @@ function getDateInterval(startDate, endDate) {
 * Handle either removing or adding new days based
 * on the date input fields.
 * */
-export function modifyDays($periodItem, $dates) {
+function modifyDays($periodItem, $dates) {
   let dateInputs = $dates.find('input');
   let $daysList = $periodItem.find('#period-days-list');
   let $currentWeekdayObjects = $daysList.children().find("[id*='-weekday']");
@@ -242,6 +333,9 @@ export function modifyDays($periodItem, $dates) {
   let startDate = new Date(convertDateFormat(dateInputs[0].value));
   let endDate = new Date(convertDateFormat(dateInputs[1].value));
   let currentDays = [];
+
+  let $periodHeading = $periodItem.find('.panel-heading-period');
+  $periodHeading.text(`${startDate.toLocaleDateString('fi-FI')} - ${endDate.toLocaleDateString('fi-FI')}`);
 
   if ((!startDate || !endDate) || (startDate > endDate)) {
     return;
@@ -304,7 +398,7 @@ function addDay(daysList, weekday) {
   let emptyDayItem = getEmptyDayItem();
 
   if (emptyDayItem) {
-    let newDayItem = emptyDayItem.clone();
+    let newDayItem = emptyDayItem.clone(true);
 
     newDayItem.find("[id*='-weekday']").val(weekday);
     daysList.append(newDayItem);
@@ -326,7 +420,7 @@ function removePeriodExtraDays(periodItem) {
 /*
 * Adds a new period item and updates all the ids where necessary.
 * */
-export function addNewPeriod() {
+function addNewPeriod() {
   // Get the list or periods.
   let $periodList = $('#current-periods-list');
   let emptyPeriodItem = getEmptyPeriodItem();
@@ -357,16 +451,20 @@ function attachPeriodEventHandlers(periodItem) {
   //Attach the event handler for the date pickers.
   let $dates = periodItem.find("[id^='date-input']");
   $dates.change(() => modifyDays(periodItem, $dates));
+
+  const $copyTimeButtons = periodItem.find('.copy-next');
+  $copyTimeButtons.click((event) => copyTimeToNext(event));
 }
 
 function removePeriodEventHandlers(periodItem) {
   periodItem.find(".delete-time").off();
   periodItem.find(".copy-time-btn").off();
   periodItem.find("[id^='date-input']").off();
+  periodItem.find('.copy-next').off();
 
 }
 
-export function removePeriod(periodItem) {
+function removePeriod(periodItem) {
   if (periodItem) {
     periodItem.remove();
 
@@ -384,14 +482,14 @@ export function removePeriod(periodItem) {
   }
 }
 
-export function updatePeriodsTotalForms() {
+function updatePeriodsTotalForms() {
   document.getElementById('id_periods-TOTAL_FORMS').value = getPeriodCount();
 }
 
 /*
 * Appends a copy of the given period element.
 * */
-export function copyTimePeriod(periodItem) {
+function copyTimePeriod(periodItem) {
   let $periodsList = $('#current-periods-list');
   let newItem = $(periodItem).clone();
   $periodsList.append(newItem);
@@ -414,4 +512,20 @@ export function copyTimePeriod(periodItem) {
 
   //Reset initial forms in case there are some days present in the previous period.
   newItem.find('#days-management-form').find('[id$="-INITIAL_FORMS"]').val('0');
+}
+
+/*
+ * Copy opening and closing times to next row in period
+ */
+function copyTimeToNext(event) {
+  const currentRow = event.target.closest('.weekday-row');
+  const nextRow = currentRow.nextElementSibling;
+  if (nextRow === null) {
+    return;
+  }
+  const timeInputs = currentRow.querySelectorAll('.time-input-row input');
+  const nextTimeInputs = nextRow.querySelectorAll('.time-input-row input');
+  for (let i = 0; i < timeInputs.length; i++) {
+    nextTimeInputs[i].value = timeInputs[i].value;
+  }
 }
