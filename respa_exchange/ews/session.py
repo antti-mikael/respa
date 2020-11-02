@@ -2,8 +2,10 @@ import logging
 
 import requests
 from lxml import etree
+from django.conf import settings
 from requests.packages.urllib3.util.retry import Retry
-from requests_ntlm import HttpNtlmAuth
+from msal import PublicClientApplication
+from respa_exchange.ews.authentication import Oauth2Authenticate
 from requests.adapters import HTTPAdapter
 
 from .xml import NAMESPACES
@@ -36,15 +38,15 @@ class SoapFault(Exception):
 
 class ExchangeSession(requests.Session):
     """
-    Encapsulates an NTLM authenticated requests session with special capabilities to do SOAP requests.
+    Encapsulates an Oauth2 authenticated requests session with special capabilities to do SOAP requests.
     """
 
     encoding = "UTF-8"
 
-    def __init__(self, url, username, password):
+    def __init__(self, url, username, password, client_id=None, tenant_id=None):
         super(ExchangeSession, self).__init__()
         self.url = url
-        self.auth = HttpNtlmAuth(username, password)
+        self.auth = Oauth2Authenticate(username, password, client_id, tenant_id).authenticate()
         self.log = logging.getLogger("ExchangeSession")
 
         # Retry the requests a couple of times in case of a connection error.
