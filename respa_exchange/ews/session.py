@@ -3,7 +3,7 @@ import logging
 import requests
 from lxml import etree
 from requests.packages.urllib3.util.retry import Retry
-from requests_ntlm import HttpNtlmAuth
+from requests.auth import HTTPBasicAuth
 from requests.adapters import HTTPAdapter
 
 from .xml import NAMESPACES
@@ -36,7 +36,7 @@ class SoapFault(Exception):
 
 class ExchangeSession(requests.Session):
     """
-    Encapsulates an NTLM authenticated requests session with special capabilities to do SOAP requests.
+    Encapsulates an Basic Auth authenticated requests session with special capabilities to do SOAP requests.
     """
 
     encoding = "UTF-8"
@@ -44,7 +44,7 @@ class ExchangeSession(requests.Session):
     def __init__(self, url, username, password):
         super(ExchangeSession, self).__init__()
         self.url = url
-        self.auth = HttpNtlmAuth(username, password)
+        self.auth = HTTPBasicAuth(username, password)
         self.log = logging.getLogger("ExchangeSession")
 
         # Retry the requests a couple of times in case of a connection error.
