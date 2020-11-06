@@ -77,7 +77,6 @@ lxml==4.3.0               # via -r requirements.in, python-docx
 markupsafe==1.1.0         # via jinja2
 mccabe==0.6.1             # via flake8
 more-itertools==5.0.0     # via pytest
-msal==1.5.1               # via -r requirements.in
 ntlm-auth==1.2.0          # via requests-ntlm
 oauthlib==3.0.0           # via requests-oauthlib
 pillow==7.0.0             # via easy-thumbnails

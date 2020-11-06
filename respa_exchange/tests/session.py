@@ -32,13 +32,7 @@ class SoapSeller(ExchangeSession):
 
         :param handler_delegate: The delegate object; see the class docstring.
         """
-        super(SoapSeller, self).__init__(
-            url="https://outlook.office365.com/EWS/Exchange.asmx",
-            username="dumpuser@knowledgehunting.onmicrosoft.com",
-            password="aurRL4bSWUEv9Jn",
-            client_id="dcecfbd8-7634-457a-bbae-7867a8cc276d",
-            tenant_id="212eb996-38f6-4c11-9845-f1ee7bbc8b6d"
-        )
+        super(SoapSeller, self).__init__("http://example.com", "CONTOSO\\dummy", "dummy")
         self.handler_delegate = handler_delegate
 
     def send(self, request, **kwargs):
