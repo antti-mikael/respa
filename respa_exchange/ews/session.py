@@ -5,10 +5,16 @@ from lxml import etree
 from requests.packages.urllib3.util.retry import Retry
 from requests.auth import HTTPBasicAuth
 from requests.adapters import HTTPAdapter
+import socket
+import requests.packages.urllib3.util.connection as urllib3_cn
 
 from .xml import NAMESPACES
 
 SOAP_ENVELOPE_TAG = b'<Envelope xmlns="http://schemas.xmlsoap.org/soap/envelope/">'
+
+
+def force_ipv4():
+    urllib3_cn.allowed_gai_family = lambda: socket.AF_INET
 
 
 class SoapFault(Exception):
@@ -42,6 +48,7 @@ class ExchangeSession(requests.Session):
     encoding = "UTF-8"
 
     def __init__(self, url, username, password):
+        force_ipv4()  # O365 Exchange has an allowlist of IPv4 addresses, if we use IPv6 we will get blocked
         super(ExchangeSession, self).__init__()
         self.url = url
         self.auth = HTTPBasicAuth(username, password)
