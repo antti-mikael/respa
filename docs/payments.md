@@ -5,6 +5,7 @@ Payments app adds support for Respa resources to have paid reservations. In addi
 Transactions are handled by a third party payment provider. Currently implemented provider integrations:
 
 * [Bambora Payform](https://www.bambora.com/fi/fi/online/)
+* [CPU Ceepos](https://www.cpu.fi/ratkaisut/verkkokauppa/)
 
 ## Enabling and configuring Payments
 
@@ -26,6 +27,17 @@ In addition to the general configuration keys mentioned in the previous section,
 - `RESPA_PAYMENTS_BAMBORA_API_KEY`: Identifies which merchant store account to use with Bambora. Value can be found in the merchant portal. Provided as a string. No default value.
 - `RESPA_PAYMENTS_BAMBORA_API_SECRET`: Used to calculate hashes out of the data being sent and received, to verify it is not being tampered with. Also found in the merchant portal and provided as a string. No default value.
 - `RESPA_PAYMENTS_BAMBORA_PAYMENT_METHODS`: An array of payment methods to show to the user to select from e.g.`['nordea', 'creditcards']`. Full list of supported values can be found in [the currencies section of](https://payform.bambora.com/docs/web_payments/?page=full-api-reference#currencies) Bambora's API documentation page.
+
+### CPU Ceepos configuration
+
+The Ceepos API version the provider implementation targets is `3.0.0`. More information about the API can be found
+from `docs/payments_cpu_api.pdf`.
+
+In addition to the general configuration keys mentioned in the previous section, enabling Ceepos also requires the following configuration to function:
+
+- `RESPA_PAYMENTS_CEEPOS_API_URL`: The base URL where Ceepos requests are sent. No default value.
+- `RESPA_PAYMENTS_CEEPOS_API_KEY`: Identifies which source system account to use with Ceepos. Value will be provided by CPU. Provided as a string. No default value.
+- `RESPA_PAYMENTS_CEEPOS_API_SECRET`: Used to calculate hashes out of the data being sent and received, to verify it is not being tampered with. Also provided by CPU and provided as a string. No default value.
 
 ## Basics
 
