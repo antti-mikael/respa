@@ -3,7 +3,12 @@ from rest_framework import exceptions, serializers, status
 from rest_framework.exceptions import PermissionDenied
 
 from payments.exceptions import (
-    DuplicateOrderError, PayloadValidationError, RespaPaymentError, ServiceUnavailableError, UnknownReturnCodeError
+    DuplicateOrderError,
+    PayloadValidationError,
+    PaymentCreationFailedError,
+    RespaPaymentError,
+    ServiceUnavailableError,
+    UnknownReturnCodeError,
 )
 from resources.api.reservation import ReservationSerializer
 
@@ -35,7 +40,7 @@ class ReservationEndpointOrderSerializer(OrderSerializerBase):
         except DuplicateOrderError as doe:
             raise exceptions.APIException(detail=str(doe),
                                           code=status.HTTP_409_CONFLICT)
-        except (PayloadValidationError, UnknownReturnCodeError) as e:
+        except (PayloadValidationError, PaymentCreationFailedError, UnknownReturnCodeError) as e:
             raise exceptions.APIException(detail=str(e),
                                           code=status.HTTP_500_INTERNAL_SERVER_ERROR)
         except ServiceUnavailableError as sue:

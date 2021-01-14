@@ -22,3 +22,7 @@ class DuplicateOrderError(RespaPaymentError):
 
 class UnknownReturnCodeError(RespaPaymentError):
     """If payment service returns a status code that is not recognized by the handler"""
+
+
+class PaymentCreationFailedError(RespaPaymentError):
+    """When payment creation fails or is cancelled by the payment service"""
