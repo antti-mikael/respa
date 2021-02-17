@@ -76,6 +76,8 @@ class ExchangeSession(requests.Session):
         )
         headers = {
             "Accept": "text/xml",
+            "X-AnchorMailbox": request.impersonation,
+            "X-PreferServerAffinity": "true",
             "Content-type": "text/xml; charset=%s" % self.encoding
         }
         return dict(data=body, headers=headers, auth=self.auth)
@@ -106,11 +108,18 @@ class ExchangeSession(requests.Session):
         Send an EWSRequest by SOAP and stream the response.
         """
         resp = self.post(self.url, timeout=timeout, stream=True, **self._prepare_soap(request))
+        data_full_chunk = b''
         for data in resp.iter_content(chunk_size=None):
             data = data.strip()
             if not data:
                 continue
-            yield self._process_soap_response(data)
+            data_full_chunk += data
+            try:
+                etree.fromstring(data_full_chunk.decode("utf-8"))
+                yield self._process_soap_response(data_full_chunk)
+                data_full_chunk = b''
+            except:
+                self.log.debug("Incomplete xml content", data_full_chunk)
 
     def _process_soap_response(self, content):
         if content.count(SOAP_ENVELOPE_TAG) > 1:
