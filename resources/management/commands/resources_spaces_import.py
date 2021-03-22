@@ -6,6 +6,7 @@ from django.core.management import BaseCommand, CommandError
 from django.utils import translation
 
 from resources.models import Resource, Unit, ResourceType, Purpose, ResourceGroup
+from respa_exchange.models import ExchangeConfiguration, ExchangeResource
 
 
 class Columns(enum.Enum):
@@ -23,6 +24,7 @@ class Columns(enum.Enum):
     is_reservable = 11
     reservation_info = 12
     resource_group = 13
+    exchange = 14
 
 
 class Command(BaseCommand):
@@ -35,7 +37,7 @@ class Command(BaseCommand):
 
     @staticmethod
     def get_authentication_type(authentication_type_fi):
-        if authentication_type_fi == "ei mitään":
+        if authentication_type_fi.lower() == "ei mitään":
             return "none"
         with translation.override("fi"):
             authentication_type = dict(Resource.AUTHENTICATION_TYPES)
@@ -56,24 +58,22 @@ class Command(BaseCommand):
                     continue
                 resource = Resource()
                 resource.public = True if row[Columns.is_public.value] else False
-                unit = Unit.objects.filter(street_address__iexact=row[Columns.unit.value])
-                if not unit:
-                    unit = Unit(name=row[Columns.unit.value].split(",")[0], street_address=row[Columns.unit.value])
-                    unit.save()
-                else:
-                    unit = unit[0]
+                unit, created = Unit.objects.update_or_create(
+                    street_address__iexact=row[Columns.unit.value],
+                    defaults={'name': row[Columns.unit.value].split(",")[0],
+                              'street_address': row[Columns.unit.value]})
                 resource.unit = unit
-                resource_type = ResourceType.objects.filter(name__iexact=row[Columns.recourse_type.value])
-                if not resource_type:
-                    resource_type = ResourceType(name=row[Columns.recourse_type.value], main_type="space")
-                    resource_type.save()
-                else:
-                    resource_type = resource_type[0]
+                resource_type, created = ResourceType.objects.update_or_create(
+                    name__iexact=row[Columns.recourse_type.value],
+                    main_type="space",
+                    defaults={'name': row[Columns.recourse_type.value]}
+                )
                 resource.type = resource_type
                 resource.name = row[Columns.name.value]
                 resource.description = row[Columns.description.value]
                 resource.authentication = self.get_authentication_type(row[Columns.authentication_type.value])
-                resource.people_capacity = None if row[Columns.people_capacity.value] == "" else row[Columns.people_capacity.value]
+                resource.people_capacity = None if row[Columns.people_capacity.value] == "" else row[
+                    Columns.people_capacity.value]
                 resource.area = None if row[Columns.area.value] == "" else row[Columns.area.value]
                 if not row[Columns.min_period.value] == "":
                     resource.min_period = row[Columns.min_period.value]
@@ -82,17 +82,25 @@ class Command(BaseCommand):
                 resource.reservable = True if row[Columns.is_reservable.value] else False
                 resource.reservation_info = row[Columns.reservation_info.value]
                 resource.save()
-                purpose = Purpose.objects.filter(name__iexact=row[Columns.purpose.value])
-                if not purpose:
-                    purpose = Purpose.objects.create(name=row[Columns.purpose.value])
-                else:
-                    purpose = purpose[0]
+                purpose, created = Purpose.objects.update_or_create(
+                    name__iexact=row[Columns.purpose.value],
+                    defaults={'name': row[Columns.purpose.value]})
                 resource.purposes.add(purpose)
 
-                resource_group = ResourceGroup.objects.filter(name__iexact=row[Columns.resource_group.value])
-                if not resource_group:
-                    resource_group = ResourceGroup.objects.create(name=row[Columns.resource_group.value])
-                    resource_group.resources.add(resource)
+                resource_group, created = ResourceGroup.objects.update_or_create(
+                    name__iexact=row[Columns.resource_group.value],
+                    defaults={'name': row[Columns.resource_group.value]})
+
+                resource_group.resources.add(resource)
+
+                exchange_configuration_count = ExchangeConfiguration.objects.count()
+                if exchange_configuration_count is not 0:
+                    if row[Columns.exchange.value] is not '':
+                        exchange_configuration = ExchangeConfiguration.objects.first()
+                        ExchangeResource.objects.update_or_create(
+                            principal_email__iexact=row[Columns.exchange.value],
+                            defaults={'principal_email': row[Columns.exchange.value], 'resource_id': resource.pk,
+                                      'exchange_id': exchange_configuration.pk})
                 else:
-                    resource_group[0].resources.add(resource)
+                    print('Can not find exchange_configuration. Skipping add exchange resource')
             print("Done!")
