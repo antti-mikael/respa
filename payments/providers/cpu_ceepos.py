@@ -1,5 +1,6 @@
 import hashlib
 import hmac
+import json
 import logging
 from typing import Dict
 
@@ -169,7 +170,7 @@ class CPUCeeposProvider(PaymentProvider):
         return self._validate_payload(response, RESPONSE_CHECKSUM_PARAMS)
 
     def validate_ceepos_request(self, request):
-        data = request.POST if request.method == "POST" else request.GET
+        data = json.loads(request.body) if request.method == "POST" else request.GET
         return self._validate_payload(data, REQUEST_CHECKSUM_PARAMS)
 
     def _validate_payload(self, data, params):
@@ -315,18 +316,19 @@ class CPUCeeposProvider(PaymentProvider):
             98 = System error
         """
         request = self.request
-        LOG.debug("Handling CeePos notify request, params: {}.".format(request.POST))
+        request_data = json.loads(request.body)
+        LOG.debug("Handling CeePos notify request, params: {}.".format(request_data))
 
         if not self.validate_ceepos_request(request=request):
             return HttpResponse(status=200)
 
         try:
-            order = Order.objects.get(order_number=request.POST.get("Id"))
+            order = Order.objects.get(order_number=request_data.get("Id"))
         except Order.DoesNotExist:
             LOG.warning("Notify: Order does not exist.")
             return HttpResponse(status=200)
 
-        status_code = request.POST.get("Status")
+        status_code = request_data.get("Status")
         if status_code == "1":
             LOG.debug("Notify: Payment completed successfully.")
             try:
