@@ -409,7 +409,9 @@ def test_handle_notify_request_order_not_found(
         "Hash": "ebe63dd26229fac6310c2cbac206fe5d92f1eac6c40630e65a329b54fb2330ee",
     }
     rf = RequestFactory()
-    request = rf.post("/payments/notify/", params)
+    request = rf.post(
+        "/payments/notify/", data=json.dumps(params), content_type="application/json"
+    )
     payment_provider = create_ceepos_provider(
         provider_base_config, request, UI_RETURN_URL
     )
@@ -440,7 +442,9 @@ def test_handle_notify_request_success(
     order_with_products.set_state(order_state)
 
     rf = RequestFactory()
-    request = rf.post("/payments/notify/", params)
+    request = rf.post(
+        "/payments/notify/", data=json.dumps(params), content_type="application/json"
+    )
     payment_provider = create_ceepos_provider(
         provider_base_config, request, UI_RETURN_URL
     )
@@ -473,7 +477,9 @@ def test_handle_notify_request_payment_failed(
     order_with_products.set_state(order_state)
 
     rf = RequestFactory()
-    request = rf.post("/payments/notify/", params)
+    request = rf.post(
+        "/payments/notify/", data=json.dumps(params), content_type="application/json"
+    )
     payment_provider = create_ceepos_provider(
         provider_base_config, request, UI_RETURN_URL
     )
@@ -493,7 +499,9 @@ def test_handle_notify_request_unknown_error(provider_base_config, order_with_pr
         "Hash": "f712cd108691bd22d39b321eb93b8320dd484fe7fa9e71daf0ff0c0ac2e1d41e",
     }
     rf = RequestFactory()
-    request = rf.post("/payments/notify/", params)
+    request = rf.post(
+        "/payments/notify/", data=json.dumps(params), content_type="application/json"
+    )
     payment_provider = create_ceepos_provider(
         provider_base_config, request, UI_RETURN_URL
     )
