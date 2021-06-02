@@ -1,6 +1,7 @@
 import logging
 
 import requests
+from django.conf import settings
 from lxml import etree
 from requests.packages.urllib3.util.retry import Retry
 from requests_ntlm import HttpNtlmAuth
@@ -34,7 +35,7 @@ class SoapFault(Exception):
         )
 
 
-class ExchangeSession(requests.Session):
+class BaseExchangeSession(requests.Session):
     """
     Encapsulates an NTLM authenticated requests session with special capabilities to do SOAP requests.
     """
@@ -42,23 +43,13 @@ class ExchangeSession(requests.Session):
     encoding = "UTF-8"
 
     def __init__(self, url, username, password):
-        super(ExchangeSession, self).__init__()
+        super().__init__()
         self.url = url
         self.auth = HttpNtlmAuth(username, password)
         self.log = logging.getLogger("ExchangeSession")
 
-        # Retry the requests a couple of times in case of a connection error.
-        num_retries = 3
-        retry = Retry(
-            total=num_retries,
-            connect=num_retries,
-            read=0,
-            status=0,
-            backoff_factor=0.3,
-        )
-        adapter = HTTPAdapter(max_retries=retry)
-        self.mount('http://', adapter)
-        self.mount('https://', adapter)
+        for mountpoint, adapter in self.get_http_adapters(url).items():
+            self.mount(mountpoint, adapter)
 
     def _prepare_soap(self, request):
         envelope = request.envelop()
@@ -122,3 +113,56 @@ class ExchangeSession(requests.Session):
         if fault_nodes:
             raise SoapFault.from_xml(fault_nodes[0])
         return tree
+
+    @classmethod
+    def get_http_adapters(cls, url):
+        """
+        Create HTTP(S) adapters.
+
+        :type url: str
+        :rtype: Dict[str, requests.adapters.BaseAdapter]
+        """
+        raise NotImplemented()
+
+
+class ExchangeSession(BaseExchangeSession):
+    @classmethod
+    def get_http_adapters(cls, url):
+        # Retry the requests a couple of times in case of a connection error.
+        num_retries = 3
+        retry = Retry(
+            backoff_factor=0.3,
+            connect=num_retries,
+            read=0,
+            status=0,
+            total=num_retries,
+        )
+        adapter = HTTPAdapter(max_retries=retry)
+
+        return {
+            'http://': adapter,
+            'https://': adapter,
+        }
+
+
+class ExchangeSessionBlockingConnPool(BaseExchangeSession):
+    @classmethod
+    def get_http_adapters(cls, url):
+        # Retry the requests a couple of times in case of a connection error.
+        num_retries = 3
+        retry = Retry(
+            backoff_factor=0.3,
+            connect=num_retries,
+            read=0,
+            status=0,
+            total=num_retries,
+        )
+
+        # Limit the number of concurrent connections.
+        poolsize = getattr(settings, "RESPA_EXCHANGE_EWS_SESSION_POOLSIZE", 10)
+        adapter = HTTPAdapter(pool_block=True, pool_maxsize=poolsize, max_retries=retry)
+
+        return {
+            'http://': adapter,
+            'https://': adapter,
+        }
