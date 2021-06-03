@@ -325,7 +325,10 @@ def sync_from_exchange(ex_resource, future_days=365, no_op=False):
     # resource on creation, we cant select for update, because there is not
     # that resource yet in the database.
     if ex_resource.id:
-        ex_resource = ExchangeResource.objects.select_for_update().get(id=ex_resource.id)
+        # We already have the exchange resource, but it is not locked in the database.
+        # Select it for update, but dont use the resource, because sync is also called
+        # from models clean method the database does not have the updated data yet.
+        ex_resource_lock = ExchangeResource.objects.select_for_update().get(id=ex_resource.id)
 
     if not ex_resource.sync_to_respa and not no_op:
         return
