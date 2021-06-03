@@ -16,6 +16,7 @@ from respa_exchange.ews.calendar import GetCalendarItemsRequest, FindCalendarIte
 from respa_exchange.ews.user import ResolveNamesRequest
 from respa_exchange.ews.objs import ItemID
 from respa_exchange.ews.xml import NAMESPACES
+from respa_exchange.ews.session import SoapFault
 from respa_exchange.models import ExchangeReservation, ExchangeUser, \
     ExchangeUserX500Address, ExchangeResource
 
@@ -346,8 +347,14 @@ def sync_from_exchange(ex_resource, future_days=365, no_op=False):
         end_date=end_date
     )
     session = ex_resource.exchange.get_ews_session()
+    try:
+        resp = gcir.send(session)
+    except SoapFault:
+        log.warning("SOAP failure while processing a request:", exc_info=True)
+        return
+
     calendar_items = {}
-    for item in gcir.send(session):
+    for item in resp:
         calendar_items[ItemID.from_tree(item)] = item
 
     hashes = set(item_id.hash for item_id in calendar_items.keys())
