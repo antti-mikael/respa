@@ -306,10 +306,18 @@ class Reservation(ModifiableModel):
         # Check that begin and end times are on valid time slots.
         opening_hours = self.resource.get_opening_hours(self.begin.date(), self.end.date())
         for dt in (self.begin, self.end):
-            days = opening_hours.get(dt.date(), [])
-            day = next((day for day in days if day['opens'] is not None and day['opens'] <= dt <= day['closes']), None)
-            if day and not is_valid_time_slot(dt, self.resource.min_period, day['opens']):
-                raise ValidationError(_("Begin and end time must match time slots"))
+            day = next(
+                (
+                    day
+                    for day in opening_hours.get(dt.date(), [])
+                    if day['opens'] is not None and day['opens'] <= dt <= day['closes']
+                ),
+                None,
+            )
+            if day:
+                slot_duration = self.resource.min_period
+                if not is_valid_time_slot(dt, slot_duration, day['opens']):
+                    raise ValidationError(_("Begin and end time must match time slots"))
 
         original_reservation = self if self.pk else kwargs.get('original_reservation', None)
         if self.resource.check_reservation_collision(self.begin, self.end, original_reservation):
