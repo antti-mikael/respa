@@ -3,6 +3,7 @@ Django settings for respa project.
 """
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
+import datetime
 import os
 import environ
 from django.utils.translation import ugettext_lazy as _
@@ -244,6 +245,7 @@ RESPA_MAILS_FROM_ADDRESS = ""
 RESPA_CATERINGS_ENABLED = False
 RESPA_COMMENTS_ENABLED = False
 RESPA_DOCX_TEMPLATE = os.path.join(BASE_DIR, 'reports', 'data', 'default.docx')
+RESPA_RESOURCE_DEFAULT_TIME_SLOT_DURATION = datetime.timedelta(minutes=30)
 
 
 # local_settings.py can be used to override environment-specific settings

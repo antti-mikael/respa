@@ -315,7 +315,14 @@ class Reservation(ModifiableModel):
                 None,
             )
             if day:
-                slot_duration = self.resource.min_period
+                # If resource's minimum reservable time slot (min_period) matches the
+                # configured default time slot duration, validate that the reservation
+                # conforms to that granularity. Otherwise enforce granularity of 5mins.
+                default_duration = settings.RESPA_RESOURCE_DEFAULT_TIME_SLOT_DURATION
+                if self.resource.min_period == default_duration:
+                    slot_duration = default_duration
+                else:
+                    slot_duration = datetime.timedelta(minutes=5)
                 if not is_valid_time_slot(dt, slot_duration, day['opens']):
                     raise ValidationError(_("Begin and end time must match time slots"))
 
